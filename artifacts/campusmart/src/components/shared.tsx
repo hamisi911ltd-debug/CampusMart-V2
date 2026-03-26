@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Heart, MapPin, Star, Clock, Wifi, Shield, Droplets, Sofa } from "lucide-react";
+import { Heart, MapPin, Star, Clock, Wifi, Shield, Droplets, Sofa, ShoppingBag } from "lucide-react";
 import { cn, formatKES } from "@/lib/utils";
 import type { Product, Room, FoodVendor } from "@workspace/api-client-react";
 import { useToggleWishlist } from "@workspace/api-client-react";

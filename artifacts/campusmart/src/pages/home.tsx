@@ -1,9 +1,7 @@
-import { useState } from "react";
-import { Search, Bell, ShoppingCart, BookOpen, Laptop, Shirt, Utensils, Key, PenTool, Armchair } from "lucide-react";
+import { Search, BookOpen, Laptop, Shirt, Utensils, Key, PenTool, Armchair } from "lucide-react";
 import { Link } from "wouter";
 import { ProductCard } from "@/components/shared";
-import { useListProducts, useGetCart } from "@workspace/api-client-react";
-import { useAuth } from "@/lib/auth-context";
+import { useListProducts } from "@workspace/api-client-react";
 
 const CATEGORIES = [
   { name: "Books", icon: BookOpen, color: "bg-blue-100 text-blue-600" },
@@ -16,8 +14,6 @@ const CATEGORIES = [
 ];
 
 export default function Home() {
-  const { isAuthenticated, openAuthModal } = useAuth();
-  const { data: cart } = useGetCart({ query: { enabled: isAuthenticated, retry: false } });
   const { data: featuredData, isLoading } = useListProducts({ featured: true });
 
   const banners = [
@@ -28,29 +24,7 @@ export default function Home() {
 
   return (
     <div className="pb-8">
-      {/* Mobile Top Bar */}
-      <div className="md:hidden sticky top-0 bg-white/90 backdrop-blur-xl z-40 border-b border-border/50 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <span className="text-xl font-display font-extrabold text-primary tracking-tight">Campus</span>
-          <span className="text-xl font-display font-extrabold text-secondary tracking-tight">Mart</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="relative p-2 rounded-full hover:bg-muted/80 transition-colors">
-            <Bell className="w-6 h-6 text-foreground" />
-            <span className="absolute top-2 right-2.5 w-2 h-2 bg-accent rounded-full border border-white"></span>
-          </button>
-          <Link href="/cart" className="relative p-2 rounded-full hover:bg-muted/80 transition-colors">
-            <ShoppingCart className="w-6 h-6 text-foreground" />
-            {cart?.itemCount ? (
-              <span className="absolute -top-0.5 -right-0.5 min-w-5 h-5 flex items-center justify-center bg-accent text-white text-[10px] font-bold rounded-full border-2 border-white">
-                {cart.itemCount}
-              </span>
-            ) : null}
-          </Link>
-        </div>
-      </div>
-
-      <div className="px-4 md:px-8 max-w-7xl mx-auto space-y-8 mt-4 md:mt-8">
+      <div className="px-4 md:px-8 max-w-7xl mx-auto space-y-8 mt-4 md:mt-6">
         {/* Mobile Search */}
         <div className="md:hidden relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />

@@ -1,6 +1,6 @@
 import { useAuth } from "@/lib/auth-context";
 import { useGetCurrentUser } from "@workspace/api-client-react";
-import { Settings, Package, Heart, LogOut, ChevronRight, MapPin, Star } from "lucide-react";
+import { Settings, Package, Heart, LogOut, ChevronRight, MapPin, Star, User } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Profile() {
@@ -119,6 +119,3 @@ export default function Profile() {
     </div>
   );
 }
-
-// Ensure User is imported for the icon
-import { User } from "lucide-react";
