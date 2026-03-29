@@ -1,0 +1,20 @@
+version: 1
+applications:
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            - corepack enable
+            - corepack prepare pnpm@10.33.0 --activate
+            - pnpm install --frozen-lockfile
+        build:
+          commands:
+            - cd artifacts/campusmart && pnpm run build
+      artifacts:
+        baseDirectory: artifacts/campusmart/dist
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+    appRoot: .
