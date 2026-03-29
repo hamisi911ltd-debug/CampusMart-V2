@@ -11,7 +11,7 @@ applications:
           commands:
             - cd artifacts/campusmart && pnpm run build
       artifacts:
-        baseDirectory: artifacts/campusmart/dist
+        baseDirectory: artifacts/campusmart/dist/public
         files:
           - '**/*'
       cache:
