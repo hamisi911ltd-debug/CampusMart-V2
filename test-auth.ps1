@@ -13,7 +13,7 @@ $registerBody = @{
 } | ConvertTo-Json
 
 try {
-    $registerResponse = Invoke-RestMethod -Uri "http://localhost:5000/api/auth/register" `
+    $registerResponse = Invoke-RestMethod -Uri "http://localhost:5001/api/auth/register" `
         -Method Post `
         -ContentType "application/json" `
         -Body $registerBody `
@@ -38,7 +38,7 @@ $loginBody = @{
 } | ConvertTo-Json
 
 try {
-    $loginResponse = Invoke-RestMethod -Uri "http://localhost:5000/api/auth/login" `
+    $loginResponse = Invoke-RestMethod -Uri "http://localhost:5001/api/auth/login" `
         -Method Post `
         -ContentType "application/json" `
         -Body $loginBody `
@@ -62,7 +62,7 @@ if ($token) {
         $headers = @{
             "Authorization" = "Bearer $token"
         }
-        $meResponse = Invoke-RestMethod -Uri "http://localhost:5000/api/auth/me" `
+        $meResponse = Invoke-RestMethod -Uri "http://localhost:5001/api/auth/me" `
             -Method Get `
             -Headers $headers `
             -ErrorAction Stop

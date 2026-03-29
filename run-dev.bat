@@ -19,7 +19,7 @@ if %ERRORLEVEL% NEQ 0 (
 echo Starting both API server and frontend...
 echo.
 echo This will open 2 new windows:
-echo - API Server (port 5000)
+echo - API Server (port 5001)
 echo - Frontend (port 5173)
 echo.
 echo Press any key to continue...
@@ -40,7 +40,7 @@ echo Servers starting...
 echo ========================================
 echo.
 echo Frontend: http://localhost:5173
-echo API: http://localhost:5000
+echo API: http://localhost:5001
 echo.
 echo Check the new windows for server output.
 echo.

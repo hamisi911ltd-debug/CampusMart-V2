@@ -19,7 +19,7 @@ export default function Profile() {
 
   const updateProfileObj = useMutation({
     mutationFn: async (data: { username?: string, campus?: string, phone?: string }) => {
-      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5001";
       const resp = await fetch(`${baseUrl}/api/users/profile`, {
         method: "PUT",
         headers: {
