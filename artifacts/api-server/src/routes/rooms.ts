@@ -53,7 +53,7 @@ router.get("/", async (req, res) => {
       .limit(Number(limit))
       .offset((Number(page) - 1) * Number(limit));
 
-    const rooms = rows.map(({ room, landlordName, landlordAvatar }) => ({
+    const rooms = rows.map(({ room, landlordName, landlordAvatar }: any) => ({
       ...room,
       landlordName: landlordName || "Unknown",
       landlordAvatar,

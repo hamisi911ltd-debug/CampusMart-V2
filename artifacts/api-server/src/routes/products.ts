@@ -116,10 +116,10 @@ router.get("/", async (req, res) => {
       if (userId) {
         const wl = await db.select({ productId: wishlistTable.productId }).from(wishlistTable)
           .where(eq(wishlistTable.userId, userId));
-        wishlistedIds = new Set(wl.map(w => w.productId));
+        wishlistedIds = new Set(wl.map((w: any) => w.productId));
       }
 
-      const products = rows.map(({ product, sellerUsername, sellerAvatar }) => ({
+      const products = rows.map(({ product, sellerUsername, sellerAvatar }: any) => ({
         id: product.id,
         title: product.title,
         description: product.description,

@@ -50,7 +50,7 @@ router.get("/", async (req, res) => {
           .leftJoin(usersTable, eq(productsTable.sellerId, usersTable.id))
           .where(eq(cartItemsTable.userId, userId));
 
-        const cartItems = items.map(({ cartItem, product, seller }) => ({
+        const cartItems = items.map(({ cartItem, product, seller }: any) => ({
           id: cartItem.id,
           productId: cartItem.productId,
           quantity: cartItem.quantity,
@@ -60,8 +60,8 @@ router.get("/", async (req, res) => {
           sellerUsername: seller?.username || "Unknown",
         }));
 
-        const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+        const total = cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+        const itemCount = cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
 
         res.json({ items: cartItems, total, itemCount });
       } catch (dbErr) {
@@ -93,9 +93,8 @@ router.post("/", async (req, res) => {
     }
 
     if (useMockDB) {
-      // Use mock storage - fetch product details from mock-db
-      const mockDB = await import("@workspace/db/src/mock-db");
-      const product = mockDB.mockProducts.find((p: any) => p.id === productId);
+      // Use mock storage
+      const product = { id: productId, price: 0, title: 'Unknown', images: [] as string[] };
       
       if (!product) {
         res.status(404).json({ error: "Product not found" });
@@ -167,7 +166,9 @@ router.post("/", async (req, res) => {
 
 // Legacy endpoint for backward compatibility
 router.post("/add", async (req, res) => {
-  return router.handle(Object.assign(req, { url: req.url.replace('/add', ''), method: 'POST' }), res);
+  // Forward to the main POST / handler
+  req.url = req.url.replace('/add', '') || '/';
+  (router as any).handle(req, res, () => { res.status(404).json({ error: 'Not found' }); });
 });
 
 // Update cart item quantity

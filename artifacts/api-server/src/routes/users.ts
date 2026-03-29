@@ -183,7 +183,7 @@ router.get("/search/:query", async (req, res) => {
       .where(eq(usersTable.username, req.params.query))
       .limit(10);
 
-    const filtered = users.map(({ passwordHash, ...user }) => user);
+    const filtered = users.map(({ passwordHash, ...user }: any) => user);
     res.json(filtered);
   } catch (err) {
     console.error(err);

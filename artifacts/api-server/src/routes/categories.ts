@@ -39,7 +39,7 @@ router.get("/wishlist", async (req, res) => {
       .leftJoin(productsTable, eq(wishlistTable.productId, productsTable.id))
       .where(eq(wishlistTable.userId, userId));
 
-    const wishlist = items.map(({ product }) => product).filter(Boolean);
+    const wishlist = items.map(({ product }: any) => product).filter(Boolean);
     res.json(wishlist);
   } catch (err) {
     req.log.error(err);
