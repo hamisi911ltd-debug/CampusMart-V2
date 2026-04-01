@@ -19,7 +19,7 @@ export default function Profile() {
 
   const updateProfileObj = useMutation({
     mutationFn: async (data: { username?: string, campus?: string, phone?: string }) => {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.campusmart.co.ke";
       const resp = await fetch(`${baseUrl}/api/users/profile`, {
         method: "PUT",
         headers: {

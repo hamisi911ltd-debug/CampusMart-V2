@@ -41,7 +41,7 @@ export default function Home() {
         {hasError && (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm">
             <p className="text-red-800 font-semibold">⚠️ Connection Issue</p>
-            <p className="text-red-700 text-xs mt-1">Unable to load products. Make sure the API server is running on port 5001.</p>
+            <p className="text-red-700 text-xs mt-1">Unable to load products. Make sure the API server is running at api.campusmart.co.ke.</p>
           </div>
         )}
 

@@ -23,7 +23,7 @@ export default function CampusMartApp({ Component, pageProps }: AppProps) {
   );
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.campusmart.co.ke";
     setBaseUrl(apiUrl);
   }, []);
 
