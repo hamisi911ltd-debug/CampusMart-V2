@@ -2,8 +2,8 @@
   "version": 2,
   "framework": null,
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm run build",
-  "outputDirectory": ".",
+  "buildCommand": "pnpm run build:api",
+  "outputDirectory": "artifacts/api-server",
   "rewrites": [
     { "source": "/(.*)", "destination": "/api" }
   ]
