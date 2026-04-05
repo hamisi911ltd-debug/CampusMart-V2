@@ -3,7 +3,8 @@ import { db } from "@workspace/db";
 import { foodVendorsTable, foodItemsTable } from "@workspace/db";
 import { eq, ilike, and, desc, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
-import { extractUser } from "./auth";
+import { extractUser, useMockDB } from "./auth";
+import { getLocalDB, saveLocalDB } from "../lib/mock-storage";
 
 const router: IRouter = Router();
 
@@ -16,28 +17,48 @@ router.get("/vendors", async (req, res) => {
   try {
     const { campus, search, page = "1", limit = "20" } = req.query as any;
 
-    let query = db.select().from(foodVendorsTable);
+    try {
+      if (useMockDB) throw new Error("Mock DB active");
+      let query = db.select().from(foodVendorsTable);
 
-    const conditions = [eq(foodVendorsTable.isOpen, true)];
-    if (campus) conditions.push(eq(foodVendorsTable.campus, campus));
-    if (search) conditions.push(ilike(foodVendorsTable.name, `%${search}%`));
+      const conditions = [eq(foodVendorsTable.isOpen, true)];
+      if (campus) conditions.push(eq(foodVendorsTable.campus, campus));
+      if (search) conditions.push(ilike(foodVendorsTable.name, `%${search}%`));
 
-    const vendors = await query.where(and(...conditions))
-      .orderBy(desc(foodVendorsTable.rating))
-      .limit(Number(limit))
-      .offset((Number(page) - 1) * Number(limit));
+      const vendors = await query.where(and(...conditions))
+        .orderBy(desc(foodVendorsTable.rating))
+        .limit(Number(limit))
+        .offset((Number(page) - 1) * Number(limit));
 
-    const totalRows = await db.select({ count: sql<number>`count(*)` })
-      .from(foodVendorsTable)
-      .where(and(...conditions));
-    const total = Number(totalRows[0]?.count || 0);
+      const totalRows = await db.select({ count: sql<number>`count(*)` })
+        .from(foodVendorsTable)
+        .where(and(...conditions));
+      const total = Number(totalRows[0]?.count || 0);
 
-    res.json({
-      vendors,
-      total,
-      page: Number(page),
-      totalPages: Math.ceil(total / Number(limit)),
-    });
+      res.json({
+        vendors,
+        total,
+        page: Number(page),
+        totalPages: Math.ceil(total / Number(limit)),
+      });
+    } catch (dbErr) {
+      const dbInstance = getLocalDB();
+      let vendors = [...dbInstance.foodVendors].filter(v => v.isOpen);
+      if (campus) vendors = vendors.filter(v => v.campus === campus);
+      if (search) vendors = vendors.filter(v => v.name.toLowerCase().includes(search.toLowerCase()));
+      
+      vendors.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      
+      const total = vendors.length;
+      vendors = vendors.slice((Number(page) - 1) * Number(limit), Number(page) * Number(limit));
+      
+      res.json({
+        vendors,
+        total,
+        page: Number(page),
+        totalPages: Math.ceil(total / Number(limit)),
+      });
+    }
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Failed to fetch vendors" });
@@ -47,18 +68,30 @@ router.get("/vendors", async (req, res) => {
 // Get vendor by ID
 router.get("/vendors/:id", async (req, res) => {
   try {
-    const [vendor] = await db.select().from(foodVendorsTable)
-      .where(eq(foodVendorsTable.id, req.params.id));
+    try {
+      if (useMockDB) throw new Error("Mock DB active");
+      const [vendor] = await db.select().from(foodVendorsTable)
+        .where(eq(foodVendorsTable.id, req.params.id));
 
-    if (!vendor) {
-      res.status(404).json({ error: "Vendor not found" });
-      return;
+      if (!vendor) {
+        res.status(404).json({ error: "Vendor not found" });
+        return;
+      }
+
+      const items = await db.select().from(foodItemsTable)
+        .where(eq(foodItemsTable.vendorId, vendor.id));
+
+      res.json({ ...vendor, items });
+    } catch (dbErr) {
+      const dbInstance = getLocalDB();
+      const vendor = dbInstance.foodVendors.find((v: any) => v.id === req.params.id);
+      if (!vendor) {
+        res.status(404).json({ error: "Vendor not found" });
+        return;
+      }
+      const items = dbInstance.foodItems.filter((i: any) => i.vendorId === vendor.id);
+      res.json({ ...vendor, items });
     }
-
-    const items = await db.select().from(foodItemsTable)
-      .where(eq(foodItemsTable.vendorId, vendor.id));
-
-    res.json({ ...vendor, items });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Failed to fetch vendor" });
@@ -80,6 +113,7 @@ router.post("/vendors", async (req, res) => {
     }
 
     const id = generateId();
+    if (useMockDB) throw new Error("Mock DB active");
     const [vendor] = await db.insert(foodVendorsTable).values({
       id,
       name,
@@ -92,6 +126,19 @@ router.post("/vendors", async (req, res) => {
 
     res.status(201).json(vendor);
   } catch (err) {
+    if (useMockDB || (err as any).message === "Mock DB active") {
+      const { name, campus, bannerImage, deliveryTime, minOrder, categories } = req.body;
+      const vendor = {
+        id: generateId(), name, campus, bannerImage: bannerImage || null,
+        deliveryTime: deliveryTime || "20-30 min", minOrder: minOrder || 0,
+        categories: categories || [], isOpen: true, rating: 0, createdAt: new Date()
+      };
+      const dbInstance = getLocalDB();
+      dbInstance.foodVendors.push(vendor);
+      saveLocalDB();
+      res.status(201).json(vendor);
+      return;
+    }
     req.log.error(err);
     res.status(500).json({ error: "Failed to create vendor" });
   }
@@ -100,9 +147,16 @@ router.post("/vendors", async (req, res) => {
 // Get food items by vendor
 router.get("/items/vendor/:vendorId", async (req, res) => {
   try {
-    const items = await db.select().from(foodItemsTable)
-      .where(and(eq(foodItemsTable.vendorId, req.params.vendorId), eq(foodItemsTable.available, true)));
-    res.json(items);
+    try {
+      if (useMockDB) throw new Error("Mock DB active");
+      const items = await db.select().from(foodItemsTable)
+        .where(and(eq(foodItemsTable.vendorId, req.params.vendorId), eq(foodItemsTable.available, true)));
+      res.json(items);
+    } catch (dbErr) {
+      const dbInstance = getLocalDB();
+      const items = dbInstance.foodItems.filter((i: any) => i.vendorId === req.params.vendorId && i.available);
+      res.json(items);
+    }
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Failed to fetch items" });
@@ -124,6 +178,7 @@ router.post("/items", async (req, res) => {
     }
 
     const id = generateId();
+    if (useMockDB) throw new Error("Mock DB active");
     const [item] = await db.insert(foodItemsTable).values({
       id,
       vendorId,
@@ -136,6 +191,18 @@ router.post("/items", async (req, res) => {
 
     res.status(201).json(item);
   } catch (err) {
+    if (useMockDB || (err as any).message === "Mock DB active") {
+      const { vendorId, name, description, price, image, category } = req.body;
+      const item = {
+        id: generateId(), vendorId, name, description: description || null,
+        price: Number(price), image: image || null, category, available: true, createdAt: new Date()
+      };
+      const dbInstance = getLocalDB();
+      dbInstance.foodItems.push(item);
+      saveLocalDB();
+      res.status(201).json(item);
+      return;
+    }
     req.log.error(err);
     res.status(500).json({ error: "Failed to create food item" });
   }
@@ -151,6 +218,7 @@ router.put("/items/:id", async (req, res) => {
   try {
     const { name, description, price, image, category, available } = req.body;
 
+    if (useMockDB) throw new Error("Mock DB active");
     const [existing] = await db.select().from(foodItemsTable).where(eq(foodItemsTable.id, req.params.id));
     if (!existing) {
       res.status(404).json({ error: "Item not found" });
@@ -171,6 +239,18 @@ router.put("/items/:id", async (req, res) => {
 
     res.json(updated);
   } catch (err) {
+    if (useMockDB || (err as any).message === "Mock DB active") {
+      const dbInstance = getLocalDB();
+      const idx = dbInstance.foodItems.findIndex(i => i.id === req.params.id);
+      if (idx !== -1) {
+        dbInstance.foodItems[idx] = { ...dbInstance.foodItems[idx], ...req.body };
+        saveLocalDB();
+        res.json(dbInstance.foodItems[idx]);
+        return;
+      }
+      res.status(404).json({ error: "Item not found" });
+      return;
+    }
     req.log.error(err);
     res.status(500).json({ error: "Failed to update item" });
   }
@@ -184,9 +264,20 @@ router.delete("/items/:id", async (req, res) => {
     return;
   }
   try {
+    if (useMockDB) throw new Error("Mock DB active");
     await db.delete(foodItemsTable).where(eq(foodItemsTable.id, req.params.id));
     res.json({ success: true, message: "Item deleted" });
   } catch (err) {
+    if (useMockDB || (err as any).message === "Mock DB active") {
+      const dbInstance = getLocalDB();
+      const idx = dbInstance.foodItems.findIndex(i => i.id === req.params.id);
+      if (idx !== -1) {
+        dbInstance.foodItems.splice(idx, 1);
+        saveLocalDB();
+        res.json({ success: true, message: "Item deleted" });
+        return;
+      }
+    }
     req.log.error(err);
     res.status(500).json({ error: "Failed to delete item" });
   }

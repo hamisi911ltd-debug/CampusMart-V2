@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 
-const port = Number(process.env.PORT) || 5000;
+const port = Number(process.env.PORT) || 3001;
 
 app.listen(port, (err) => {
   if (err) {

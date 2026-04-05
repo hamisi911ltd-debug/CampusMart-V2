@@ -4,10 +4,12 @@ import { X, Mail, Lock, Phone, User as UserIcon, Building2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context";
 import { useLoginUser, useRegisterUser } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
+import { useLocation } from "wouter";
 
 export function AuthModal() {
   const { isAuthModalOpen, closeAuthModal, setToken } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
+  const [, setLocation] = useLocation();
 
   // Login State
   const [loginEmail, setLoginEmail] = useState("");
@@ -31,6 +33,7 @@ export function AuthModal() {
       });
       setToken(res.token);
       closeAuthModal();
+      // Don't redirect - let the page update naturally
     } catch (error) {
       console.error(error);
     }
@@ -63,6 +66,10 @@ export function AuthModal() {
       });
       setToken(res.token);
       closeAuthModal();
+      // Redirect to profile after registration
+      setTimeout(() => {
+        setLocation("/profile");
+      }, 300);
     } catch (error) {
       console.error(error);
     }

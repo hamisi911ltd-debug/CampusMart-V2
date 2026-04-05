@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { ordersTable, cartItemsTable, productsTable } from "@workspace/db";
+import { ordersTable, cartItemsTable, productsTable, foodItemsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
-import { extractUser } from "./auth";
+import { extractUser, mockCart } from "./auth";
+import { getLocalDB } from "../lib/mock-storage";
 
 const router: IRouter = Router();
 
@@ -95,14 +96,17 @@ router.post("/checkout", async (req, res) => {
 
     if (useMockDB) {
       // Mock checkout
+      const dbInstance = getLocalDB();
+      const userCart = mockCart.get(userId) || []; // This should be synced with the cart route's mockCart
+      
       const id = generateId();
       const orderId = generateOrderId();
       const order = {
         id,
         orderId,
         buyerId: userId,
-        items: [],
-        totalAmount: 5000,
+        items: userCart,
+        totalAmount: userCart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
         status: "confirmed",
         deliveryAddress,
         createdAt: new Date().toISOString(),
@@ -112,16 +116,21 @@ router.post("/checkout", async (req, res) => {
       userOrders.push(order);
       mockOrders.set(userId, userOrders);
       
+      // Clear mock cart
+      mockCart.set(userId, []);
+      
       res.status(201).json(order);
       return;
     }
 
-    // Get cart items
+    // Get cart items with join to products and food items
     const cartItems = await db.select({
       cartItem: cartItemsTable,
       product: productsTable,
+      foodItem: foodItemsTable,
     }).from(cartItemsTable)
       .leftJoin(productsTable, eq(cartItemsTable.productId, productsTable.id))
+      .leftJoin(foodItemsTable, eq(cartItemsTable.foodItemId, foodItemsTable.id))
       .where(eq(cartItemsTable.userId, userId));
 
     if (cartItems.length === 0) {
@@ -133,27 +142,38 @@ router.post("/checkout", async (req, res) => {
     let totalAmount = 0;
     const items: any[] = [];
 
-    for (const { cartItem, product } of cartItems) {
-      if (!product) continue;
-      
-      if (product.stock < cartItem.quantity) {
-        res.status(400).json({ error: `Insufficient stock for ${product.title}` });
-        return;
+    for (const { cartItem, product, foodItem } of cartItems) {
+      if (product) {
+        if (product.stock < cartItem.quantity) {
+          res.status(400).json({ error: `Insufficient stock for ${product.title}` });
+          return;
+        }
+
+        totalAmount += product.price * cartItem.quantity;
+        items.push({
+          productId: product.id,
+          title: product.title,
+          price: product.price,
+          quantity: cartItem.quantity,
+          sellerId: product.sellerId,
+          type: "product",
+        });
+
+        // Reduce stock
+        await db.update(productsTable)
+          .set({ stock: product.stock - cartItem.quantity })
+          .where(eq(productsTable.id, product.id));
+      } else if (foodItem) {
+        totalAmount += foodItem.price * cartItem.quantity;
+        items.push({
+          foodItemId: foodItem.id,
+          title: foodItem.name,
+          price: foodItem.price,
+          quantity: cartItem.quantity,
+          vendorId: foodItem.vendorId,
+          type: "food",
+        });
       }
-
-      totalAmount += product.price * cartItem.quantity;
-      items.push({
-        productId: product.id,
-        title: product.title,
-        price: product.price,
-        quantity: cartItem.quantity,
-        sellerId: product.sellerId,
-      });
-
-      // Reduce stock
-      await db.update(productsTable)
-        .set({ stock: product.stock - cartItem.quantity })
-        .where(eq(productsTable.id, product.id));
     }
 
     // Create order

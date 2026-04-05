@@ -51,16 +51,41 @@ export default function SellModal({ onClose }: SellModalProps) {
 
     toProcess.forEach((file) => {
       if (!file.type.startsWith("image/")) return;
-      if (file.size > 5 * 1024 * 1024) {
-        setErrorMsg("Each image must be under 5 MB.");
+      if (file.size > 10 * 1024 * 1024) {
+        setErrorMsg("Each image must be under 10 MB.");
         return;
       }
+      
       const reader = new FileReader();
       reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        setImages((prev) => [...prev, dataUrl]);
-        setPreviews((prev) => [...prev, dataUrl]);
-        setErrorMsg("");
+        const img = new Image();
+        img.onload = () => {
+          // Compress image to max 800px width/height
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxSize = 800;
+          
+          if (width > height && width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          } else if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Convert to base64 with compression (0.7 quality)
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          setImages((prev) => [...prev, compressedDataUrl]);
+          setPreviews((prev) => [...prev, compressedDataUrl]);
+          setErrorMsg("");
+        };
+        img.src = ev.target?.result as string;
       };
       reader.readAsDataURL(file);
     });
@@ -101,11 +126,11 @@ export default function SellModal({ onClose }: SellModalProps) {
       });
 
       // Global refresh so pagination resets to page 1 and item shows at top
+      queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
       setSuccess(true);
       setTimeout(() => {
         onClose();
-        window.location.reload();
-      }, 2000);
+      }, 1500);
     } catch (err: any) {
       const msg =
         err?.data?.message || err?.data?.error || err?.message || "Failed to post listing. Please try again.";

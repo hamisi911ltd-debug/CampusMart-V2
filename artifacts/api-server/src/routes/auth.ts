@@ -12,7 +12,19 @@ const JWT_SECRET = process.env.JWT_SECRET || "campusmart-secret-2024";
 
 // In-memory user storage for mock mode backed by local JSON file
 export const mockUsers = new Map<string, any>();
-getLocalDB().users.forEach((u) => mockUsers.set(u.id, u));
+export const mockCart = new Map<string, any[]>();
+const dbInstance = getLocalDB();
+dbInstance.users.forEach((u) => mockUsers.set(u.id, u));
+if (dbInstance.cartItems) {
+  // We need a way to group flat cartItems by userId for the Map
+  const cartMap = new Map<string, any[]>();
+  dbInstance.cartItems.forEach(item => {
+    const userItems = cartMap.get(item.userId) || [];
+    userItems.push(item);
+    cartMap.set(item.userId, userItems);
+  });
+  cartMap.forEach((items, userId) => mockCart.set(userId, items));
+}
 export let useMockDB = false;
 
 // Pre-fill a standard user for easy testing
@@ -100,9 +112,14 @@ router.post("/register", async (req, res) => {
 
       mockUsers.set(id, user);
       
+      // Persist to JSON file
       const dbInstance = getLocalDB();
-      dbInstance.users.push(user);
-      saveLocalDB();
+      // Check if user already exists in the array (shouldn't happen, but safety check)
+      const existingIndex = dbInstance.users.findIndex(u => u.id === id);
+      if (existingIndex === -1) {
+        dbInstance.users.push(user);
+        saveLocalDB();
+      }
 
       const token = generateToken(user.id);
       res.status(201).json({

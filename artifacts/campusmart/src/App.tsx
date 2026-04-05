@@ -10,7 +10,7 @@ import { AuthModal } from "@/components/auth-modal";
 import Home from "@/pages/home";
 import Market from "@/pages/market";
 import Food from "@/pages/food";
-import Nrooms from "@/pages/nrooms";
+import Houses from "@/pages/houses";
 import Profile from "@/pages/profile";
 import Cart from "@/pages/cart";
 import ProductDetail from "@/pages/product-detail";
@@ -31,7 +31,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/market" component={Market} />
       <Route path="/food" component={Food} />
-      <Route path="/nrooms" component={Nrooms} />
+      <Route path="/houses" component={Houses} />
       <Route path="/profile" component={Profile} />
       <Route path="/cart" component={Cart} />
       <Route path="/product/:id" component={ProductDetail} />

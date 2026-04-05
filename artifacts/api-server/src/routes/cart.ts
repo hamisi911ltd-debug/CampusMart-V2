@@ -1,14 +1,14 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { cartItemsTable, productsTable, usersTable } from "@workspace/db";
+import { cartItemsTable, productsTable, usersTable, foodItemsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
-import { extractUser } from "./auth";
+import { extractUser, mockCart } from "./auth";
+import { getLocalDB, saveLocalDB } from "../lib/mock-storage";
 
 const router: IRouter = Router();
 
 // In-memory cart storage for mock mode
-const mockCart = new Map<string, any[]>();
 let useMockDB = false;
 
 // Test database connection on startup
@@ -24,6 +24,16 @@ function generateId(): string {
   return randomBytes(16).toString("hex");
 }
 
+function syncMockStorage(userId: string) {
+  const dbInstance = getLocalDB();
+  // Filter out existing items for this user and replace with current mockCart state
+  dbInstance.cartItems = dbInstance.cartItems.filter((i: any) => i.userId !== userId);
+  const userCart = mockCart.get(userId) || [];
+  // Ensure userId is on every item
+  dbInstance.cartItems.push(...userCart.map((i: any) => ({ ...i, userId })));
+  saveLocalDB();
+}
+
 // Get user's cart
 router.get("/", async (req, res) => {
   const userId = extractUser(req);
@@ -35,43 +45,52 @@ router.get("/", async (req, res) => {
     if (useMockDB) {
       // Use mock storage
       const items = mockCart.get(userId) || [];
-      const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+      const total = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+      const itemCount = items.reduce((sum: number, item: any) => sum + item.quantity, 0);
       res.json({ items, total, itemCount });
-    } else {
-      // Use database
-      try {
-        const items = await db.select({
-          cartItem: cartItemsTable,
-          product: productsTable,
-          seller: usersTable,
-        }).from(cartItemsTable)
-          .leftJoin(productsTable, eq(cartItemsTable.productId, productsTable.id))
-          .leftJoin(usersTable, eq(productsTable.sellerId, usersTable.id))
-          .where(eq(cartItemsTable.userId, userId));
-
-        const cartItems = items.map(({ cartItem, product, seller }) => ({
-          id: cartItem.id,
-          productId: cartItem.productId,
-          quantity: cartItem.quantity,
-          title: product?.title || "Unknown Product",
-          price: product?.price || 0,
-          image: product?.images?.[0] || null,
-          sellerUsername: seller?.username || "Unknown",
-        }));
-
-        const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-
-        res.json({ items: cartItems, total, itemCount });
-      } catch (dbErr) {
-        useMockDB = true;
-        const items = mockCart.get(userId) || [];
-        const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-        res.json({ items, total, itemCount });
-      }
+      return;
     }
+
+    // Get user's cart
+    const items = await db.select({
+      cartItem: cartItemsTable,
+      product: productsTable,
+      seller: usersTable,
+      foodItem: foodItemsTable,
+    }).from(cartItemsTable)
+      .leftJoin(productsTable, eq(cartItemsTable.productId, productsTable.id))
+      .leftJoin(usersTable, eq(productsTable.sellerId, usersTable.id))
+      .leftJoin(foodItemsTable, eq(cartItemsTable.foodItemId, foodItemsTable.id))
+      .where(eq(cartItemsTable.userId, userId));
+
+    const cartItems = items.map(({ cartItem, product, seller, foodItem }: any) => {
+      if (foodItem) {
+        return {
+          id: cartItem.id,
+          foodItemId: cartItem.foodItemId,
+          quantity: cartItem.quantity,
+          title: foodItem.name,
+          price: foodItem.price,
+          image: foodItem.image,
+          type: "food",
+        };
+      }
+      return {
+        id: cartItem.id,
+        productId: cartItem.productId,
+        quantity: cartItem.quantity,
+        title: product?.title || "Unknown Product",
+        price: product?.price || 0,
+        image: product?.images?.[0] || null,
+        sellerUsername: seller?.username || "Unknown",
+        type: "product",
+      };
+    });
+
+    const total = cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+    const itemCount = cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
+
+    res.json({ items: cartItems, total, itemCount });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Failed to fetch cart" });
@@ -86,138 +105,126 @@ router.post("/", async (req, res) => {
     return;
   }
   try {
-    const { productId, quantity = 1 } = req.body;
-    if (!productId) {
-      res.status(400).json({ error: "Product ID required" });
-      return;
-    }
-
-    if (useMockDB) {
-      // Use mock storage - fetch product details from mock-db
-      const mockDB = await import("@workspace/db/src/mock-db");
-      const product = mockDB.mockProducts.find((p: any) => p.id === productId);
-      
-      if (!product) {
-        res.status(404).json({ error: "Product not found" });
-        return;
-      }
-
-      const userCart = mockCart.get(userId) || [];
-      const existing = userCart.find(item => item.productId === productId);
-      
-      if (existing) {
-        existing.quantity += Number(quantity);
-      } else {
-        const id = generateId();
-        userCart.push({
-          id,
-          productId,
-          quantity: Number(quantity),
-          price: product.price,
-          title: product.title,
-          image: product.images?.[0] || null,
-          sellerUsername: "seller",
-        });
-      }
-      
-      mockCart.set(userId, userCart);
-      
-      // Return cart format
-      const total = userCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const itemCount = userCart.reduce((sum, item) => sum + item.quantity, 0);
-      res.status(201).json({ items: userCart, total, itemCount });
-    } else {
-      // Use database
-      try {
-        const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
-        if (!product) {
-          res.status(404).json({ error: "Product not found" });
-          return;
-        }
-
-        const [existing] = await db.select().from(cartItemsTable)
-          .where(and(eq(cartItemsTable.userId, userId), eq(cartItemsTable.productId, productId)));
-
-        if (existing) {
-          const [updated] = await db.update(cartItemsTable)
-            .set({ quantity: existing.quantity + Number(quantity) })
-            .where(eq(cartItemsTable.id, existing.id))
-            .returning();
-          res.json(updated);
-        } else {
-          const id = generateId();
-          const [item] = await db.insert(cartItemsTable).values({
-            id,
-            userId,
-            productId,
-            quantity: Number(quantity),
-          }).returning();
-          res.status(201).json(item);
-        }
-      } catch (dbErr) {
-        useMockDB = true;
-        res.status(500).json({ error: "Database error, please try again" });
-      }
-    }
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Failed to add to cart" });
-  }
-});
-
-// Legacy endpoint for backward compatibility
-router.post("/add", async (req, res) => {
-  return router.handle(Object.assign(req, { url: req.url.replace('/add', ''), method: 'POST' }), res);
-});
-
-// Update cart item quantity
-router.put("/:id", async (req, res) => {
-  const userId = extractUser(req);
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  try {
-    const { quantity } = req.body;
-    if (quantity === undefined || quantity < 1) {
-      res.status(400).json({ error: "Invalid quantity" });
+    const { productId, foodItemId, quantity = 1 } = req.body;
+    if (!productId && !foodItemId) {
+      res.status(400).json({ error: "Product or Food Item ID required" });
       return;
     }
 
     if (useMockDB) {
       // Use mock storage
-      const userCart = mockCart.get(userId) || [];
-      const item = userCart.find(i => i.id === req.params.id);
-      
-      if (item) {
-        item.quantity = Number(quantity);
-        mockCart.set(userId, userCart);
-        res.json(item);
+      const dbInstance = getLocalDB();
+      let itemPrice = 0;
+      let itemTitle = "";
+      let itemImage = null;
+
+      if (productId) {
+        const product = dbInstance.products.find((p: any) => p.id === productId);
+        if (!product) return res.status(404).json({ error: "Product not found" });
+        itemPrice = product.price;
+        itemTitle = product.title;
+        itemImage = product.images?.[0] || null;
       } else {
-        res.status(404).json({ error: "Cart item not found" });
+        const foodItem = dbInstance.foodItems.find((f: any) => f.id === foodItemId);
+        if (!foodItem) return res.status(404).json({ error: "Food item not found" });
+        itemPrice = foodItem.price;
+        itemTitle = foodItem.name;
+        itemImage = foodItem.image;
+      }
+
+      const userCart = mockCart.get(userId) || [];
+      const existing = userCart.find(i => (productId && i.productId === productId) || (foodItemId && i.foodItemId === foodItemId));
+      
+      if (existing) {
+        existing.quantity += Number(quantity);
+      } else {
+        userCart.push({
+          id: generateId(),
+          productId: productId || null,
+          foodItemId: foodItemId || null,
+          quantity: Number(quantity),
+          price: itemPrice,
+          title: itemTitle,
+          image: itemImage,
+          type: productId ? "product" : "food",
+          userId // For flat storage in JSON
+        });
+      }
+      
+      mockCart.set(userId, userCart);
+      syncMockStorage(userId);
+      res.status(201).json({ success: true });
+      return;
+    }
+
+    // Real DB
+    if (productId) {
+      const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
+      if (!product) return res.status(404).json({ error: "Product not found" });
+
+      const [existing] = await db.select().from(cartItemsTable)
+        .where(and(eq(cartItemsTable.userId, userId), eq(cartItemsTable.productId, productId)));
+
+      if (existing) {
+        const [updated] = await db.update(cartItemsTable).set({ quantity: existing.quantity + Number(quantity) }).where(eq(cartItemsTable.id, existing.id)).returning();
+        res.json(updated);
+        return;
+      } else {
+        const [item] = await db.insert(cartItemsTable).values({ id: generateId(), userId, productId, quantity: Number(quantity) }).returning();
+        res.status(201).json(item);
+        return;
       }
     } else {
-      // Use database
-      try {
-        const [item] = await db.select().from(cartItemsTable).where(eq(cartItemsTable.id, req.params.id));
-        if (!item || item.userId !== userId) {
-          res.status(403).json({ error: "Forbidden" });
-          return;
-        }
+      const [foodItem] = await db.select().from(foodItemsTable).where(eq(foodItemsTable.id, foodItemId));
+      if (!foodItem) return res.status(404).json({ error: "Food item not found" });
 
-        const [updated] = await db.update(cartItemsTable)
-          .set({ quantity: Number(quantity) })
-          .where(eq(cartItemsTable.id, req.params.id))
-          .returning();
+      const [existing] = await db.select().from(cartItemsTable)
+        .where(and(eq(cartItemsTable.userId, userId), eq(cartItemsTable.foodItemId, foodItemId)));
 
+      if (existing) {
+        const [updated] = await db.update(cartItemsTable).set({ quantity: existing.quantity + Number(quantity) }).where(eq(cartItemsTable.id, existing.id)).returning();
         res.json(updated);
-      } catch (dbErr) {
-        useMockDB = true;
-        res.status(500).json({ error: "Database error, please try again" });
+        return;
+      } else {
+        const [item] = await db.insert(cartItemsTable).values({ id: generateId(), userId, foodItemId, quantity: Number(quantity) }).returning();
+        res.status(201).json(item);
+        return;
       }
     }
   } catch (err) {
     req.log.error(err);
+    res.status(500).json({ error: "Failed to add to cart" });
+    return;
+  }
+});
+
+// Update cart item quantity
+router.put("/:id", async (req, res) => {
+  const userId = extractUser(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const { quantity } = req.body;
+    if (quantity === undefined || quantity < 1) return res.status(400).json({ error: "Invalid quantity" });
+
+    if (useMockDB) {
+      const userCart = mockCart.get(userId) || [];
+      const item = userCart.find(i => i.id === req.params.id);
+      if (item) {
+        item.quantity = Number(quantity);
+        syncMockStorage(userId);
+        res.json(item);
+      } else {
+        res.status(404).json({ error: "Cart item not found" });
+      }
+      return;
+    }
+
+    const [item] = await db.select().from(cartItemsTable).where(eq(cartItemsTable.id, req.params.id));
+    if (!item || item.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+    const [updated] = await db.update(cartItemsTable).set({ quantity: Number(quantity) }).where(eq(cartItemsTable.id, req.params.id)).returning();
+    res.json(updated);
+  } catch (err) {
     res.status(500).json({ error: "Failed to update cart item" });
   }
 });
@@ -225,64 +232,37 @@ router.put("/:id", async (req, res) => {
 // Remove item from cart
 router.delete("/:id", async (req, res) => {
   const userId = extractUser(req);
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
   try {
     if (useMockDB) {
-      // Use mock storage
       const userCart = mockCart.get(userId) || [];
       const filtered = userCart.filter(i => i.id !== req.params.id);
       mockCart.set(userId, filtered);
-      res.json({ success: true, message: "Item removed from cart" });
-    } else {
-      // Use database
-      try {
-        const [item] = await db.select().from(cartItemsTable).where(eq(cartItemsTable.id, req.params.id));
-        if (!item || item.userId !== userId) {
-          res.status(403).json({ error: "Forbidden" });
-          return;
-        }
-
-        await db.delete(cartItemsTable).where(eq(cartItemsTable.id, req.params.id));
-        res.json({ success: true, message: "Item removed from cart" });
-      } catch (dbErr) {
-        useMockDB = true;
-        res.status(500).json({ error: "Database error, please try again" });
-      }
+      syncMockStorage(userId);
+      res.json({ success: true });
+      return;
     }
+    await db.delete(cartItemsTable).where(and(eq(cartItemsTable.id, req.params.id), eq(cartItemsTable.userId, userId)));
+    res.json({ success: true });
   } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Failed to remove from cart" });
+    res.status(500).json({ error: "Failed to remove item" });
   }
 });
 
 // Clear cart
 router.delete("/", async (req, res) => {
   const userId = extractUser(req);
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
   try {
     if (useMockDB) {
-      // Use mock storage
       mockCart.set(userId, []);
-      res.json({ success: true, message: "Cart cleared" });
-    } else {
-      // Use database
-      try {
-        await db.delete(cartItemsTable).where(eq(cartItemsTable.userId, userId));
-        res.json({ success: true, message: "Cart cleared" });
-      } catch (dbErr) {
-        useMockDB = true;
-        mockCart.set(userId, []);
-        res.json({ success: true, message: "Cart cleared" });
-      }
+      syncMockStorage(userId);
+      res.json({ success: true });
+      return;
     }
+    await db.delete(cartItemsTable).where(eq(cartItemsTable.userId, userId));
+    res.json({ success: true });
   } catch (err) {
-    req.log.error(err);
     res.status(500).json({ error: "Failed to clear cart" });
   }
 });

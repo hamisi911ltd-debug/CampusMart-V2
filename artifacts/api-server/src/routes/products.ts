@@ -5,7 +5,7 @@ import { eq, ilike, and, desc, asc, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { sign, verify } from "jsonwebtoken";
 import { getLocalDB, saveLocalDB } from "../lib/mock-storage";
-import { extractUser } from "./auth";
+import { extractUser, useMockDB } from "./auth";
 
 const router: IRouter = Router();
 
@@ -13,75 +13,11 @@ function generateId(): string {
   return randomBytes(16).toString("hex");
 }
 
-// Mock data for development
-const mockProducts = [
-  {
-    id: "prod1",
-    title: "Introduction to Algorithms",
-    description: "Classic computer science textbook",
-    price: 2500,
-    originalPrice: 3500,
-    category: "books",
-    condition: "like_new",
-    campus: "Main Campus",
-    images: ["https://via.placeholder.com/300"],
-    stock: 5,
-    status: "active",
-    badge: "SALE",
-    featured: true,
-    sellerId: "user1",
-    sellerUsername: "john_doe",
-    sellerAvatar: null,
-    sellerRating: 4.5,
-    isWishlisted: false,
-    createdAt: new Date(),
-  },
-  {
-    id: "prod2",
-    title: "MacBook Pro 13\"",
-    description: "2021 model, excellent condition",
-    price: 45000,
-    originalPrice: null,
-    category: "electronics",
-    condition: "good",
-    campus: "Main Campus",
-    images: ["https://via.placeholder.com/300"],
-    stock: 1,
-    status: "active",
-    badge: "NEW",
-    featured: true,
-    sellerId: "user1",
-    sellerUsername: "john_doe",
-    sellerAvatar: null,
-    sellerRating: 4.5,
-    isWishlisted: false,
-    createdAt: new Date(),
-  },
-  {
-    id: "prod3",
-    title: "Winter Jacket",
-    description: "Warm and comfortable",
-    price: 1500,
-    originalPrice: 2000,
-    category: "fashion",
-    condition: "new",
-    campus: "Main Campus",
-    images: ["https://via.placeholder.com/300"],
-    stock: 10,
-    status: "active",
-    badge: "SALE",
-    featured: false,
-    sellerId: "user1",
-    sellerUsername: "john_doe",
-    sellerAvatar: null,
-    sellerRating: 4.5,
-    isWishlisted: false,
-    createdAt: new Date(),
-  },
-];
-
 // In-memory store for mock-mode created products linked to laptop mock file
-const mockCreated: typeof mockProducts = getLocalDB().products as any;
+// All test products removed - only user-created products will be shown
+function getMockProducts() {
+  return getLocalDB().products as any[];
+}
 
 
 // Get all products with filters
@@ -91,6 +27,7 @@ router.get("/", async (req, res) => {
     const { category, campus, search, sort, page = "1", limit = "20", featured } = req.query as any;
 
     try {
+      if (useMockDB) throw new Error("Mock DB active");
       let query = db.select({
         product: productsTable,
         sellerUsername: usersTable.username,
@@ -153,7 +90,7 @@ router.get("/", async (req, res) => {
       });
     } catch (dbErr) {
       // Use mock data if database fails
-      let filtered = [...mockCreated, ...mockProducts];
+      let filtered = [...getMockProducts()];
       
       if (category && category !== "all") {
         filtered = filtered.filter(p => p.category === category);
@@ -212,6 +149,7 @@ router.post("/", async (req, res) => {
 
     const id = generateId();
     try {
+      if (useMockDB) throw new Error("Mock DB active");
       const [product] = await db.insert(productsTable).values({
         id,
         sellerId: userId,
@@ -228,8 +166,8 @@ router.post("/", async (req, res) => {
       }).returning();
       res.status(201).json(product);
     } catch (dbErr) {
-      // Mock fallback — store in memory so it shows up in subsequent GET calls
-      const mockProduct: (typeof mockProducts)[number] = {
+      // Mock fallback — store in memory and JSON file so it shows up in subsequent GET calls
+      const mockProduct: any = {
         id,
         title,
         description: description || "",
@@ -250,8 +188,10 @@ router.post("/", async (req, res) => {
         isWishlisted: false,
         createdAt: new Date(),
       };
-      mockCreated.unshift(mockProduct);
+      const dbInstance = getLocalDB();
+      dbInstance.products.unshift(mockProduct);
       saveLocalDB();
+      
       res.status(201).json(mockProduct);
     }
   } catch (err) {
@@ -266,6 +206,7 @@ router.get("/:id", async (req, res) => {
     const userId = extractUser(req);
     
     try {
+      if (useMockDB) throw new Error("Mock DB active");
       const [row] = await db.select({
         product: productsTable,
         sellerUsername: usersTable.username,
@@ -295,7 +236,7 @@ router.get("/:id", async (req, res) => {
       });
     } catch (dbErr) {
       // Use mock data if database fails
-      const product = mockProducts.find(p => p.id === req.params.id);
+      const product = getMockProducts().find(p => p.id === req.params.id);
       if (!product) {
         res.status(404).json({ error: "Product not found" });
         return;
@@ -317,7 +258,7 @@ router.put("/:id", async (req, res) => {
   }
   try {
     const { title, description, price, originalPrice, category, condition, campus, images, stock, status } = req.body;
-    
+    if (useMockDB) throw new Error("Mock DB active");
     const [existing] = await db.select().from(productsTable).where(eq(productsTable.id, req.params.id));
     if (!existing || existing.sellerId !== userId) {
       res.status(403).json({ error: "Forbidden" });
@@ -355,6 +296,7 @@ router.delete("/:id", async (req, res) => {
     return;
   }
   try {
+    if (useMockDB) throw new Error("Mock DB active");
     const [existing] = await db.select().from(productsTable).where(eq(productsTable.id, req.params.id));
     if (!existing || existing.sellerId !== userId) {
       res.status(403).json({ error: "Forbidden" });
@@ -372,10 +314,16 @@ router.delete("/:id", async (req, res) => {
 // Get seller's products
 router.get("/seller/:sellerId", async (req, res) => {
   try {
+    if (useMockDB) throw new Error("Mock DB active");
     const products = await db.select().from(productsTable)
       .where(and(eq(productsTable.sellerId, req.params.sellerId), eq(productsTable.status, "active")));
     res.json(products);
   } catch (err) {
+    if (useMockDB || (err as any).message === "Mock DB active") {
+      const products = getLocalDB().products.filter((p: any) => p.sellerId === req.params.sellerId && p.status === "active");
+      res.json(products);
+      return;
+    }
     req.log.error(err);
     res.status(500).json({ error: "Failed to fetch seller products" });
   }
