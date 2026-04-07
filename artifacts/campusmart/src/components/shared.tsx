@@ -148,14 +148,21 @@ export function RoomCard({ room }: { room: Room }) {
 
         <div className="mt-auto pt-4 flex gap-3">
           <a
-            href="tel:+254700000000"
+            href={`tel:${room.landlordPhone || "+254700000000"}`}
             className="flex-1 py-2.5 rounded-xl bg-[#0A2342] text-white font-semibold text-sm shadow-sm hover:bg-[#0A2342]/90 transition-all active:scale-95 text-center"
           >
-            Contact Landlord
+            📞 Contact Landlord
           </a>
-          <button className="px-4 py-2.5 rounded-xl border-2 border-[#0A2342]/20 text-[#0A2342] font-semibold text-sm hover:bg-[#0A2342]/5 transition-colors">
-            View Details
-          </button>
+          {room.landlordPhone && (
+            <a
+              href={`https://wa.me/${room.landlordPhone.replace(/\D/g, "").replace(/^0/, "254")}`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-4 py-2.5 rounded-xl border-2 border-green-500/30 text-green-700 font-semibold text-sm hover:bg-green-50 transition-colors"
+            >
+              WhatsApp
+            </a>
+          )}
         </div>
       </div>
     </div>

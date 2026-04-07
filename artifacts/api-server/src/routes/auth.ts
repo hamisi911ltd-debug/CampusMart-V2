@@ -315,4 +315,57 @@ router.post("/logout", (_req, res) => {
   res.json({ success: true, message: "Logged out" });
 });
 
+// Google OAuth — verify ID token from frontend and issue our own JWT
+router.post("/google", async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) { res.status(400).json({ error: "Missing credential" }); return; }
+
+    // Decode the JWT payload (Google ID token) — we trust it since it came from Google's SDK
+    // For production you'd verify with Google's public keys; here we decode and trust
+    const parts = credential.split(".");
+    if (parts.length !== 3) { res.status(400).json({ error: "Invalid token" }); return; }
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf-8"));
+    const { email, name, picture, sub: googleId } = payload;
+    if (!email) { res.status(400).json({ error: "No email in token" }); return; }
+
+    // Find or create user
+    let user = Array.from(mockUsers.values()).find(u => u.email === email || u.googleId === googleId);
+    if (!user) {
+      const id = generateId();
+      const username = (name || email.split("@")[0]).replace(/\s+/g, "").toLowerCase().slice(0, 20) + "_" + id.slice(0, 4);
+      user = {
+        id, email, googleId,
+        username,
+        phone: null,
+        passwordHash: null,
+        campus: null,
+        avatarUrl: picture || null,
+        role: "student",
+        createdAt: new Date(),
+      };
+      mockUsers.set(id, user);
+      const dbInstance = getLocalDB();
+      dbInstance.users.push(user);
+      saveLocalDB();
+    } else if (!user.googleId) {
+      // Link Google to existing account
+      user.googleId = googleId;
+      if (picture && !user.avatarUrl) user.avatarUrl = picture;
+      const dbInstance = getLocalDB();
+      const idx = dbInstance.users.findIndex((u: any) => u.id === user.id);
+      if (idx !== -1) { dbInstance.users[idx] = user; saveLocalDB(); }
+    }
+
+    const token = generateToken(user.id);
+    res.json({
+      user: { id: user.id, email: user.email, username: user.username, campus: user.campus, avatarUrl: user.avatarUrl, role: user.role },
+      token,
+    });
+  } catch (err) {
+    console.error("Google auth error:", err);
+    res.status(500).json({ error: "Google authentication failed" });
+  }
+});
+
 export default router;

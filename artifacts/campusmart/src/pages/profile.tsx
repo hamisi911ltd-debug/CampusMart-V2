@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
-import { useGetCurrentUser, getGetCurrentUserQueryKey, useListOrders } from "@workspace/api-client-react";
+import { useGetCurrentUser, getGetCurrentUserQueryKey, useListOrders, useGetWishlist } from "@workspace/api-client-react";
 import {
   Package, Heart, LogOut, ChevronRight, MapPin, Star,
-  User, Edit2, X, Bell, Shield, Phone, Mail, Building2, PlusCircle
+  User, Edit2, X, Bell, Shield, Phone, Mail, Building2, PlusCircle,
+  MessageCircle, Truck, Lock
 } from "lucide-react";
 import SellModal from "@/components/sell-modal";
+import { ProductCard } from "@/components/shared";
+import { formatKES } from "@/lib/utils";
 
 type Tab = "account" | "orders" | "saved" | "settings";
 
@@ -21,6 +24,10 @@ export default function Profile() {
   const [editCampus, setEditCampus] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [pwMsg, setPwMsg] = useState("");
 
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: ["sellerStats", token],
@@ -41,6 +48,25 @@ export default function Profile() {
 
   const { data: orders, isLoading: ordersLoading } = useListOrders({
     query: { enabled: !!token && activeTab === "orders" }
+  });
+
+  const { data: wishlist, isLoading: wishlistLoading } = useGetWishlist({
+    query: { enabled: !!token && activeTab === "saved" }
+  });
+
+  const changePwMutation = useMutation({
+    mutationFn: async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
+      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const resp = await fetch(`${baseUrl}/api/users/change-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      if (!resp.ok) { const e = await resp.json(); throw new Error(e.error || "Failed"); }
+      return resp.json();
+    },
+    onSuccess: () => { setPwMsg("✓ Password changed!"); setCurrentPw(""); setNewPw(""); },
+    onError: (e: any) => setPwMsg(e.message || "Failed"),
   });
 
   const updateProfileObj = useMutation({
@@ -304,16 +330,34 @@ export default function Profile() {
                     </span>
                   </div>
                   <div className="space-y-2 mb-3">
-                    {order.items?.map((item: any) => (
-                      <div key={item.productId} className="flex justify-between text-xs">
+                    {order.items?.map((item: any, i: number) => (
+                      <div key={i} className="flex justify-between text-xs">
                         <span className="text-muted-foreground">{item.quantity}x {item.title}</span>
-                        <span className="font-semibold">KSh {item.price * item.quantity}</span>
+                        <span className="font-semibold">{formatKES(item.price * item.quantity)}</span>
                       </div>
                     ))}
                   </div>
+                  {/* Payment + WhatsApp info */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {order.paymentMethod === "pay_on_delivery" && (
+                      <span className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 text-[10px] font-bold rounded-full">
+                        <Truck className="w-3 h-3" /> Pay on Delivery
+                      </span>
+                    )}
+                    {order.whatsappNumber && (
+                      <a
+                        href={`https://wa.me/${order.whatsappNumber.replace(/\D/g, "").replace(/^0/, "254")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-[10px] font-bold rounded-full hover:bg-green-200 transition-colors"
+                      >
+                        <MessageCircle className="w-3 h-3" /> {order.whatsappNumber}
+                      </a>
+                    )}
+                  </div>
                   <div className="pt-3 border-t flex justify-between items-center">
                     <span className="text-sm font-bold text-[#0A2342]">Total</span>
-                    <span className="text-sm font-black text-[#0A2342]">KSh {order.totalAmount}</span>
+                    <span className="text-sm font-black text-[#0A2342]">{formatKES(order.totalAmount)}</span>
                   </div>
                 </div>
               ))}
@@ -333,13 +377,25 @@ export default function Profile() {
       {/* ── Tab: Saved ── */}
       {activeTab === "saved" && (
         <div className="mt-5">
-          <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-3xl border border-dashed border-border">
-            <div className="w-16 h-16 bg-pink-50 rounded-2xl flex items-center justify-center mb-4">
-              <Heart className="w-8 h-8 text-pink-500" />
+          {wishlistLoading ? (
+            <div className="grid grid-cols-2 gap-3">
+              {[1,2,3,4].map(i => <div key={i} className="h-48 bg-muted animate-pulse rounded-2xl" />)}
             </div>
-            <h3 className="font-bold text-foreground mb-1">No saved items</h3>
-            <p className="text-muted-foreground text-sm">Items you save will show up here.</p>
-          </div>
+          ) : (wishlist as any)?.products?.length ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {(wishlist as any).products.map((product: any) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-3xl border border-dashed border-border">
+              <div className="w-16 h-16 bg-pink-50 rounded-2xl flex items-center justify-center mb-4">
+                <Heart className="w-8 h-8 text-pink-500" />
+              </div>
+              <h3 className="font-bold text-foreground mb-1">No saved items</h3>
+              <p className="text-muted-foreground text-sm">Tap the ♥ on any product to save it here.</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -362,21 +418,51 @@ export default function Profile() {
                 <div className="w-10 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#0A2342]/20 rounded-full peer peer-checked:bg-[#1A7A4A] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-4" />
               </label>
             </div>
-            <div className="flex items-center justify-between p-4">
+          </div>
+
+          {/* Change Password */}
+          <div className="bg-white rounded-2xl border border-border overflow-hidden">
+            <button
+              onClick={() => { setShowChangePw(s => !s); setPwMsg(""); }}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+            >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center">
-                  <Shield className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Lock className="w-5 h-5" />
                 </div>
-                <div>
-                  <p className="font-semibold text-sm text-foreground">Privacy</p>
-                  <p className="text-xs text-muted-foreground">Control who sees your info</p>
+                <div className="text-left">
+                  <p className="font-semibold text-sm text-foreground">Change Password</p>
+                  <p className="text-xs text-muted-foreground">Update your account password</p>
                 </div>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" />
-                <div className="w-10 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#0A2342]/20 rounded-full peer peer-checked:bg-[#1A7A4A] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-4" />
-              </label>
-            </div>
+              <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${showChangePw ? "rotate-90" : ""}`} />
+            </button>
+            {showChangePw && (
+              <div className="px-4 pb-4 space-y-3 border-t border-border">
+                <input
+                  type="password"
+                  value={currentPw}
+                  onChange={e => setCurrentPw(e.target.value)}
+                  placeholder="Current password"
+                  className="w-full mt-3 px-3 py-2.5 border border-border rounded-xl text-sm outline-none focus:border-[#0A2342]"
+                />
+                <input
+                  type="password"
+                  value={newPw}
+                  onChange={e => setNewPw(e.target.value)}
+                  placeholder="New password"
+                  className="w-full px-3 py-2.5 border border-border rounded-xl text-sm outline-none focus:border-[#0A2342]"
+                />
+                {pwMsg && <p className={`text-xs font-medium ${pwMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>{pwMsg}</p>}
+                <button
+                  onClick={() => changePwMutation.mutate({ currentPassword: currentPw, newPassword: newPw })}
+                  disabled={!currentPw || !newPw || changePwMutation.isPending}
+                  className="w-full py-2.5 bg-[#0A2342] text-white font-bold rounded-xl text-sm disabled:opacity-50"
+                >
+                  {changePwMutation.isPending ? "Updating..." : "Update Password"}
+                </button>
+              </div>
+            )}
           </div>
 
           <button

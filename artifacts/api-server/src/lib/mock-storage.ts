@@ -12,6 +12,7 @@ interface MockDB {
   orders: any[];
   rooms: any[];
   cartItems: any[];
+  settings?: any;
 }
 
 function loadData(): MockDB {
@@ -39,6 +40,7 @@ function loadData(): MockDB {
         orders: parsed.orders || [],
         rooms: parsed.rooms || [],
         cartItems: parsed.cartItems || [],
+        settings: parsed.settings || undefined,
       };
     }
   } catch (err) {

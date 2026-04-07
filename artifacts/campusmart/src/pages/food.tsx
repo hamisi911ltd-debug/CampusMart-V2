@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { VendorCard } from "@/components/shared";
-import { useListFoodVendors, useListFoodItems } from "@workspace/api-client-react";
+import { useListFoodVendors, useListFoodItems, useAddToCart, getGetCartQueryKey } from "@workspace/api-client-react";
 import { formatKES, cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const CATEGORIES = ["All", "Meals", "Snacks", "Drinks", "Combos", "Healthy"];
 
@@ -16,32 +17,21 @@ export default function Food() {
     { vendorId: selectedVendorId || "" },
     { query: { queryKey: ["foodItems", selectedVendorId], enabled: !!selectedVendorId } }
   );
-  const { isAuthenticated, openAuthModal, token } = useAuth();
+  const { isAuthenticated, openAuthModal } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const addToCart = useAddToCart();
 
-  const addToCart = useMutation({
-    mutationFn: async (foodItemId: string) => {
-      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
-      const resp = await fetch(`${baseUrl}/api/cart`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ foodItemId, quantity: 1 })
-      });
-      if (!resp.ok) throw new Error("Failed to add to cart");
-      return resp.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
-      toast({
-        title: "Added to cart",
-        description: "Your food item was added successfully.",
-      });
+  const handleAddToCart = async (foodItemId: string) => {
+    if (!isAuthenticated) { openAuthModal(); return; }
+    try {
+      await addToCart.mutateAsync({ data: { foodItemId, quantity: 1 } });
+      queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
+      toast({ title: "Added to cart ✓", description: "Food item added to your order." });
+    } catch {
+      toast({ title: "Failed to add", description: "Please try again.", variant: "destructive" });
     }
-  });
+  };
 
   const selectedVendor = vendors?.find((v) => v.id === selectedVendorId);
 
@@ -104,14 +94,11 @@ export default function Food() {
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
                       )}
                       <button
-                        onClick={() => {
-                          if (!isAuthenticated) return openAuthModal();
-                          addToCart.mutate(item.id);
-                        }}
+                        onClick={() => handleAddToCart(item.id)}
                         disabled={addToCart.isPending}
                         className="mt-2 px-3 py-1 bg-[#D0282E] text-white text-xs font-bold rounded-lg hover:bg-[#D0282E]/90 active:scale-95 transition-all disabled:opacity-50"
                       >
-                        {addToCart.isPending && addToCart.variables === item.id ? "Adding..." : "Add to Order"}
+                        {addToCart.isPending ? "Adding..." : "Add to Order"}
                       </button>
                     </div>
                   </div>
@@ -146,8 +133,15 @@ export default function Food() {
 
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-muted animate-pulse rounded-2xl h-60 w-full" />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-2xl overflow-hidden bg-white border border-border/50 shadow-sm">
+              <Skeleton className="h-32 w-full rounded-none" />
+              <div className="p-4 space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+            </div>
           ))}
         </div>
       ) : vendors?.length ? (

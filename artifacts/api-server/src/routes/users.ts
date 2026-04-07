@@ -15,17 +15,16 @@ function hashPassword(password: string): string {
 // Get user profile
 router.get("/profile", async (req, res) => {
   const userId = extractUser(req);
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
-      return;
+    if (useMockDB) {
+      const user = mockUsers.get(userId);
+      if (!user) { res.status(404).json({ error: "User not found" }); return; }
+      const { passwordHash, ...u } = user;
+      res.json(u); return;
     }
-
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
     const { passwordHash, ...userWithoutPassword } = user;
     res.json(userWithoutPassword);
   } catch (err) {
@@ -37,12 +36,14 @@ router.get("/profile", async (req, res) => {
 // Get user by ID
 router.get("/:id", async (req, res) => {
   try {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.params.id));
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
-      return;
+    if (useMockDB) {
+      const user = mockUsers.get(req.params.id);
+      if (!user) { res.status(404).json({ error: "User not found" }); return; }
+      const { passwordHash, ...u } = user;
+      res.json(u); return;
     }
-
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.params.id));
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
     const { passwordHash, ...userWithoutPassword } = user;
     res.json(userWithoutPassword);
   } catch (err) {
@@ -118,35 +119,27 @@ router.put("/profile", async (req, res) => {
 // Change password
 router.post("/change-password", async (req, res) => {
   const userId = extractUser(req);
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
     const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-      res.status(400).json({ error: "Missing required fields" });
-      return;
+    if (!currentPassword || !newPassword) { res.status(400).json({ error: "Missing required fields" }); return; }
+
+    if (useMockDB) {
+      const user = mockUsers.get(userId);
+      if (!user) { res.status(404).json({ error: "User not found" }); return; }
+      if (user.passwordHash !== hashPassword(currentPassword)) { res.status(401).json({ error: "Current password is incorrect" }); return; }
+      user.passwordHash = hashPassword(newPassword);
+      const dbInstance = getLocalDB();
+      const idx = dbInstance.users.findIndex((u: any) => u.id === userId);
+      if (idx !== -1) { dbInstance.users[idx].passwordHash = user.passwordHash; saveLocalDB(); }
+      res.json({ success: true, message: "Password changed" }); return;
     }
 
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
-      return;
-    }
-
-    if (user.passwordHash !== hashPassword(currentPassword)) {
-      res.status(401).json({ error: "Current password is incorrect" });
-      return;
-    }
-
-    const [updated] = await db.update(usersTable)
-      .set({ passwordHash: hashPassword(newPassword) })
-      .where(eq(usersTable.id, userId))
-      .returning();
-
-    const { passwordHash, ...userWithoutPassword } = updated;
-    res.json({ success: true, message: "Password changed", user: userWithoutPassword });
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
+    if (user.passwordHash !== hashPassword(currentPassword)) { res.status(401).json({ error: "Current password is incorrect" }); return; }
+    await db.update(usersTable).set({ passwordHash: hashPassword(newPassword) }).where(eq(usersTable.id, userId));
+    res.json({ success: true, message: "Password changed" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to change password" });
@@ -222,10 +215,17 @@ router.get("/stats/seller", async (req, res) => {
 // Search users
 router.get("/search/:query", async (req, res) => {
   try {
+    if (useMockDB) {
+      const q = req.params.query.toLowerCase();
+      const results = [...mockUsers.values()]
+        .filter(u => u.username?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q))
+        .slice(0, 10)
+        .map(({ passwordHash, ...u }) => u);
+      res.json(results); return;
+    }
     const users = await db.select().from(usersTable)
       .where(eq(usersTable.username, req.params.query))
       .limit(10);
-
     const filtered = users.map(({ passwordHash, ...user }) => user);
     res.json(filtered);
   } catch (err) {
