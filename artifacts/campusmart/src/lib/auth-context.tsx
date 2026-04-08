@@ -22,9 +22,14 @@ type AuthContextType = {
   closeAuthModal: () => void;
   logout: () => void;
   isAuthenticated: boolean;
+  isLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Register the token getter with the shared fetch client so every API
+// request automatically gets an Authorization: Bearer <token> header.
+setAuthTokenGetter(() => localStorage.getItem("campusmart_token"));
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setTokenState] = useState<string | null>(() =>
@@ -33,14 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  // Register the token getter with the shared fetch client so every API
-  // request automatically gets an Authorization: Bearer <token> header.
-  useEffect(() => {
-    setAuthTokenGetter(() => localStorage.getItem("campusmart_token"));
-    return () => setAuthTokenGetter(null);
-  }, []);
-
-  const { data: user, isError } = useGetCurrentUser({
+  const { data: user, isError, isLoading } = useGetCurrentUser({
     query: {
       queryKey: ["currentUser", !!token],
       enabled: !!token,
@@ -82,7 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         openAuthModal: () => setIsAuthModalOpen(true),
         closeAuthModal: () => setIsAuthModalOpen(false),
         logout,
-        isAuthenticated: !!user && !!token,
+        isAuthenticated: !!token,
+        isLoading: !!token && isLoading,
       }}
     >
       {children}

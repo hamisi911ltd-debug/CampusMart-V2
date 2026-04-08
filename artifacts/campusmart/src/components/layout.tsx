@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/market", label: "Market", icon: ShoppingBag },
   { href: "/food", label: "Food", icon: UtensilsCrossed },
-  { href: "/nrooms", label: "Nrooms", icon: Building2 },
+  { href: "/houses", label: "Houses", icon: Building2 },
   { href: "/profile", label: "Profile", icon: User },
 ];
 

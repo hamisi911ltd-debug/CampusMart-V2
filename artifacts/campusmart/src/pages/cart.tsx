@@ -124,24 +124,37 @@ export default function Cart() {
       <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
         {/* Items */}
         <div className="flex-1 space-y-3">
-          {cart.items.map((item) => (
+          {(cart.items as any[]).map((item: any) => (
             <div key={item.id} className="flex gap-3 p-3 md:p-4 bg-white rounded-2xl border border-border shadow-sm">
-              <Link href={`/product/${item.productId}`} className="w-20 h-20 md:w-24 md:h-24 bg-muted rounded-xl shrink-0 overflow-hidden">
+              <div className="w-20 h-20 md:w-24 md:h-24 bg-muted rounded-xl shrink-0 overflow-hidden">
                 {item.image ? (
                   <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-2xl">📦</div>
+                  <div className="w-full h-full flex items-center justify-center text-2xl">
+                    {item.type === "food" ? "🍕" : "📦"}
+                  </div>
                 )}
-              </Link>
+              </div>
               <div className="flex-1 flex flex-col justify-between min-w-0">
                 <div className="flex justify-between items-start gap-2">
                   <div className="min-w-0">
-                    <Link href={`/product/${item.productId}`}>
-                      <h3 className="font-semibold text-foreground line-clamp-2 leading-tight text-sm hover:text-[#0A2342] transition-colors">
-                        {item.title}
-                      </h3>
-                    </Link>
-                    <p className="text-xs text-muted-foreground mt-0.5">@{item.sellerUsername}</p>
+                    {item.type === "food" ? (
+                      <div>
+                        <h3 className="font-semibold text-foreground line-clamp-2 leading-tight text-sm">
+                          {item.title}
+                        </h3>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="px-1.5 py-0.5 bg-[#D0282E]/10 text-[#D0282E] text-[10px] font-bold rounded uppercase tracking-wider">Food</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <Link href={`/product/${item.productId}`}>
+                        <h3 className="font-semibold text-foreground line-clamp-2 leading-tight text-sm hover:text-[#0A2342] transition-colors cursor-pointer">
+                          {item.title}
+                        </h3>
+                      </Link>
+                    )}
+                    {item.sellerUsername && <p className="text-xs text-muted-foreground mt-0.5">@{item.sellerUsername}</p>}
                   </div>
                   <button
                     onClick={() => handleRemove(item.id)}

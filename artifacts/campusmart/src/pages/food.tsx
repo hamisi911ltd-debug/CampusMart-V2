@@ -3,6 +3,8 @@ import { VendorCard } from "@/components/shared";
 import { useListFoodVendors, useListFoodItems } from "@workspace/api-client-react";
 import { formatKES, cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 const CATEGORIES = ["All", "Meals", "Snacks", "Drinks", "Combos", "Healthy"];
 
@@ -14,7 +16,32 @@ export default function Food() {
     { vendorId: selectedVendorId || "" },
     { query: { queryKey: ["foodItems", selectedVendorId], enabled: !!selectedVendorId } }
   );
-  const { isAuthenticated, openAuthModal } = useAuth();
+  const { isAuthenticated, openAuthModal, token } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const addToCart = useMutation({
+    mutationFn: async (foodItemId: string) => {
+      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const resp = await fetch(`${baseUrl}/api/cart`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ foodItemId, quantity: 1 })
+      });
+      if (!resp.ok) throw new Error("Failed to add to cart");
+      return resp.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+      toast({
+        title: "Added to cart",
+        description: "Your food item was added successfully.",
+      });
+    }
+  });
 
   const selectedVendor = vendors?.find((v) => v.id === selectedVendorId);
 
@@ -77,10 +104,14 @@ export default function Food() {
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
                       )}
                       <button
-                        onClick={() => { if (!isAuthenticated) { openAuthModal(); return; } }}
-                        className="mt-2 px-3 py-1 bg-[#D0282E] text-white text-xs font-bold rounded-lg hover:bg-[#D0282E]/90 active:scale-95 transition-all"
+                        onClick={() => {
+                          if (!isAuthenticated) return openAuthModal();
+                          addToCart.mutate(item.id);
+                        }}
+                        disabled={addToCart.isPending}
+                        className="mt-2 px-3 py-1 bg-[#D0282E] text-white text-xs font-bold rounded-lg hover:bg-[#D0282E]/90 active:scale-95 transition-all disabled:opacity-50"
                       >
-                        Add to Order
+                        {addToCart.isPending && addToCart.variables === item.id ? "Adding..." : "Add to Order"}
                       </button>
                     </div>
                   </div>

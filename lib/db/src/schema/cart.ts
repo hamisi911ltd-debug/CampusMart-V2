@@ -5,7 +5,8 @@ import { z } from "zod/v4";
 export const cartItemsTable = pgTable("cart_items", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull(),
-  productId: text("product_id").notNull(),
+  productId: text("product_id"),
+  foodItemId: text("food_item_id"),
   quantity: integer("quantity").default(1).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

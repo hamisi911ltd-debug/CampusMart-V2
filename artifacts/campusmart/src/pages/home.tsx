@@ -9,22 +9,38 @@ const CATEGORIES = [
   { name: "Electronics", image: "/images/cat_electronics.png", href: "/market" },
   { name: "Fashion", image: "/images/cat_fashion.png", href: "/market" },
   { name: "Food", image: "/images/cat_food.png", href: "/food" },
-  { name: "Nrooms", image: "/images/cat_nrooms.png", href: "/nrooms" },
+  { name: "Houses", image: "/images/cat_houses.png", href: "/houses" },
   { name: "Stationery", image: "/images/cat_stationery.png", href: "/market" },
   { name: "Furniture", emoji: "🛋️", color: "bg-amber-100", href: "/market" },
 ];
 
 const BANNERS = [
   { bg: "from-[#0A2342] to-[#1a3a6b]", tag: "MARKET", title: "Cheap Textbooks", emoji: "📚", href: "/market" },
-  { bg: "from-[#1A7A4A] to-[#14603A]", tag: "NROOMS", title: "Find a Room", emoji: "🏠", href: "/nrooms" },
+  { bg: "from-[#1A7A4A] to-[#14603A]", tag: "HOUSES", title: "Find a House", emoji: "🏠", href: "/houses" },
   { bg: "from-[#D0282E] to-[#a81f24]", tag: "FOOD", title: "Late Night Bites", emoji: "🍔", href: "/food" },
 ];
 
 export default function Home() {
   const [, navigate] = useLocation();
   const [searchVal, setSearchVal] = useState("");
-  const { data: featuredData, isLoading, isError: featuredError } = useListProducts({ featured: true, limit: 8 });
-  const { data: recentData, isError: recentError } = useListProducts({ sort: "newest", limit: 6 });
+  const { data: featuredData, isLoading, isError: featuredError } = useListProducts({ 
+    featured: true, 
+    limit: 8,
+  }, {
+    query: {
+      staleTime: 30000, // Cache for 30 seconds
+      refetchOnWindowFocus: false,
+    }
+  });
+  const { data: recentData, isError: recentError } = useListProducts({ 
+    sort: "newest", 
+    limit: 6 
+  }, {
+    query: {
+      staleTime: 30000,
+      refetchOnWindowFocus: false,
+    }
+  });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,8 +131,8 @@ export default function Home() {
           </div>
           {isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-muted animate-pulse rounded-2xl aspect-[3/4]" />
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="bg-muted/50 animate-pulse rounded-2xl aspect-[3/4]" />
               ))}
             </div>
           ) : featuredData?.products?.length ? (

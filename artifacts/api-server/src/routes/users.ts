@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { usersTable, productsTable, ordersTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 import { createHash } from "crypto";
 import { extractUser, mockUsers, useMockDB } from "./auth";
 import { getLocalDB, saveLocalDB } from "../lib/mock-storage";
@@ -161,12 +161,55 @@ router.get("/stats/seller", async (req, res) => {
     return;
   }
   try {
-    // This would require additional tables for tracking sales, reviews, etc.
-    // For now, return mock data
+    if (useMockDB) {
+      const dbInstance = getLocalDB();
+      const userProducts = dbInstance.products.filter(p => p.sellerId === userId);
+      const allOrders = dbInstance.orders || [];
+      
+      let totalSales = 0;
+      let totalEarnings = 0;
+      
+      allOrders.forEach(order => {
+        const sellerItems = order.items.filter((item: any) => item.sellerId === userId);
+        if (sellerItems.length > 0) {
+          totalSales += sellerItems.length;
+          totalEarnings += sellerItems.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
+        }
+      });
+
+      res.json({
+        totalSales,
+        totalEarnings,
+        totalProducts: userProducts.length,
+        averageRating: 4.5, // Mock rating
+        totalReviews: 0,
+      });
+      return;
+    }
+
+    // Real DB stats
+    const [productsCount] = await db.select({ count: sql<number>`count(*)` })
+      .from(productsTable)
+      .where(eq(productsTable.sellerId, userId));
+
+    const orders = await db.select().from(ordersTable);
+    
+    let totalSales = 0;
+    let totalEarnings = 0;
+
+    orders.forEach(order => {
+      const items = order.items as any[];
+      const sellerItems = items.filter(item => item.sellerId === userId);
+      if (sellerItems.length > 0) {
+        totalSales += sellerItems.length;
+        totalEarnings += sellerItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+      }
+    });
+
     res.json({
-      totalSales: 0,
-      totalEarnings: 0,
-      totalProducts: 0,
+      totalSales,
+      totalEarnings,
+      totalProducts: Number(productsCount?.count || 0),
       averageRating: 4.5,
       totalReviews: 0,
     });
