@@ -8,6 +8,8 @@ import ordersRouter from "./orders";
 import roomsRouter from "./rooms";
 import foodRouter from "./food";
 import usersRouter from "./users";
+import adminRouter from "./admin";
+import settingsRouter from "./settings";
 
 const router: IRouter = Router();
 
@@ -20,5 +22,7 @@ router.use("/orders", ordersRouter);
 router.use("/rooms", roomsRouter);
 router.use("/food", foodRouter);
 router.use("/users", usersRouter);
+router.use("/admin", adminRouter);
+router.use("/settings", settingsRouter);
 
 export default router;

@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { extractUser, mockCart } from "./auth";
-import { getLocalDB } from "../lib/mock-storage";
+import { getLocalDB, saveLocalDB } from "../lib/mock-storage";
 
 const router: IRouter = Router();
 
@@ -86,42 +86,48 @@ router.post("/", async (req, res) => {
     return;
   }
   try {
-    const { deliveryAddress } = req.body;
+    const { deliveryAddress, deliveryLat, deliveryLng, whatsappNumber, paymentMethod = "pay_on_delivery" } = req.body;
     if (!deliveryAddress) {
       res.status(400).json({ error: "Delivery address required" });
       return;
     }
+    if (!whatsappNumber) {
+      res.status(400).json({ error: "WhatsApp contact number required" });
+      return;
+    }
 
     if (useMockDB) {
-      // Mock checkout
       const dbInstance = getLocalDB();
-      const userCart = mockCart.get(userId) || []; // This should be synced with the cart route's mockCart
-      
+      const userCart = mockCart.get(userId) || [];
       const id = generateId();
       const orderId = generateOrderId();
       const order = {
-        id,
-        orderId,
-        buyerId: userId,
+        id, orderId, buyerId: userId,
         items: userCart,
-        totalAmount: userCart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-        status: "confirmed",
+        totalAmount: userCart.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0),
+        status: "pending",
         deliveryAddress,
+        deliveryLat: deliveryLat || null,
+        deliveryLng: deliveryLng || null,
+        whatsappNumber,
+        paymentMethod,
+        paymentStatus: paymentMethod === "pay_on_delivery" ? "pending" : "paid",
         createdAt: new Date().toISOString(),
       };
-      
       const userOrders = mockOrders.get(userId) || [];
       userOrders.push(order);
       mockOrders.set(userId, userOrders);
-      
-      // Clear mock cart
+      // Also persist to local DB
+      dbInstance.orders.push(order);
+      saveLocalDB();
       mockCart.set(userId, []);
-      
+      // Clear cart items from DB
+      dbInstance.cartItems = dbInstance.cartItems.filter((c: any) => c.userId !== userId);
+      saveLocalDB();
       res.status(201).json(order);
       return;
     }
 
-    // Get cart items with join to products and food items
     const cartItems = await db.select({
       cartItem: cartItemsTable,
       product: productsTable,
@@ -136,7 +142,6 @@ router.post("/", async (req, res) => {
       return;
     }
 
-    // Calculate total and prepare items
     let totalAmount = 0;
     const items: any[] = [];
 
@@ -146,51 +151,27 @@ router.post("/", async (req, res) => {
           res.status(400).json({ error: `Insufficient stock for ${product.title}` });
           return;
         }
-
         totalAmount += product.price * cartItem.quantity;
-        items.push({
-          productId: product.id,
-          title: product.title,
-          price: product.price,
-          quantity: cartItem.quantity,
-          sellerId: product.sellerId,
-          type: "product",
-        });
-
-        // Reduce stock
-        await db.update(productsTable)
-          .set({ stock: product.stock - cartItem.quantity })
-          .where(eq(productsTable.id, product.id));
+        items.push({ productId: product.id, title: product.title, price: product.price, quantity: cartItem.quantity, sellerId: product.sellerId, type: "product" });
+        await db.update(productsTable).set({ stock: product.stock - cartItem.quantity }).where(eq(productsTable.id, product.id));
       } else if (foodItem) {
         totalAmount += foodItem.price * cartItem.quantity;
-        items.push({
-          foodItemId: foodItem.id,
-          title: foodItem.name,
-          price: foodItem.price,
-          quantity: cartItem.quantity,
-          vendorId: foodItem.vendorId,
-          type: "food",
-        });
+        items.push({ foodItemId: foodItem.id, title: foodItem.name, price: foodItem.price, quantity: cartItem.quantity, vendorId: foodItem.vendorId, type: "food" });
       }
     }
 
-    // Create order
     const id = generateId();
     const orderId = generateOrderId();
     const [order] = await db.insert(ordersTable).values({
-      id,
-      orderId,
-      buyerId: userId,
+      id, orderId, buyerId: userId,
       items: items as any,
       totalAmount,
-      status: "confirmed",
+      status: "pending",
       deliveryAddress,
     }).returning();
 
-    // Clear cart
     await db.delete(cartItemsTable).where(eq(cartItemsTable.userId, userId));
-
-    res.status(201).json(order);
+    res.status(201).json({ ...order, whatsappNumber, paymentMethod, deliveryLat, deliveryLng });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Failed to create order" });
