@@ -1,6 +1,4 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { foodVendorsTable, foodItemsTable } from "@workspace/db";
 import { eq, ilike, and, desc, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { extractUser, useMockDB } from "./auth";

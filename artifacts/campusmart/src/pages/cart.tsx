@@ -1,13 +1,13 @@
 import { useAuth } from "@/lib/auth-context";
 import { useGetCart, useRemoveCartItem, useUpdateCartItem, getGetCartQueryKey, useCreateOrder } from "@workspace/api-client-react";
 import { formatKES } from "@/lib/utils";
-import { Minus, Plus, Trash2, ArrowRight, ShoppingBag, X } from "lucide-react";
+import { Minus, Plus, Trash2, ArrowRight, ShoppingBag, X, MessageCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 export default function Cart() {
-  const { isAuthenticated, openAuthModal } = useAuth();
+  const { isAuthenticated, openAuthModal, user } = useAuth();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
   const { data: cart, isLoading } = useGetCart({ query: { queryKey: ["cart", isAuthenticated], enabled: isAuthenticated } });
@@ -18,7 +18,10 @@ export default function Cart() {
   
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [gettingLocation, setGettingLocation] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [orderConfirmed, setOrderConfirmed] = useState(false);
+  const [confirmedSellers, setConfirmedSellers] = useState<any[]>([]);
 
   const handleUpdate = async (itemId: string, quantity: number) => {
     await updateMutation.mutateAsync({ itemId, data: { quantity } });
@@ -30,8 +33,42 @@ export default function Cart() {
     queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
   };
 
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const locationUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+        const newAddress = deliveryAddress 
+          ? `${deliveryAddress}\n\n📍 Live Location: ${locationUrl}`
+          : `📍 Live Location: ${locationUrl}`;
+        setDeliveryAddress(newAddress);
+        setGettingLocation(false);
+      },
+      (error) => {
+        console.error("Location error:", error);
+        alert("Failed to get location. Please enter address manually.");
+        setGettingLocation(false);
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
   const handleCheckout = () => {
     setShowCheckoutModal(true);
+  };
+
+  const formatWhatsAppNumber = (phone: string | undefined) => {
+    if (!phone) return "254700000000";
+    const cleanNumber = phone.replace(/\D/g, '');
+    if (cleanNumber.startsWith('0')) return '254' + cleanNumber.substring(1);
+    if (cleanNumber.startsWith('254')) return cleanNumber;
+    return cleanNumber;
   };
 
   const handleConfirmCheckout = async () => {
@@ -42,19 +79,49 @@ export default function Cart() {
     
     setCheckingOut(true);
     try {
+      // Group items by seller for WhatsApp notifications
+      const sellerGroups: Record<string, any> = {};
+      cart?.items.forEach((item: any) => {
+        const phone = item.sellerPhone || "254700000000";
+        if (!sellerGroups[phone]) {
+          sellerGroups[phone] = {
+            username: item.sellerUsername || "Seller",
+            items: []
+          };
+        }
+        sellerGroups[phone].items.push(item);
+      });
+
       await createOrderMutation.mutateAsync({ 
         data: { deliveryAddress: deliveryAddress.trim() } 
       });
+
+      // Prepare seller notification data
+      const sellers = Object.entries(sellerGroups).map(([phone, data]) => {
+        const itemsList = data.items.map((i: any) => `- ${i.title} (x${i.quantity})`).join('\n');
+        const total = data.items.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0);
+        const message = `Hello..... ${data.username}, I am interested in purchasing your product(s) on CampusMart:\n\n${itemsList}\n\n*Total: KES ${total}*\n*Delivery to:* ${deliveryAddress}\n\nAre these items still available?`;
+        return {
+          phone: formatWhatsAppNumber(phone),
+          username: data.username,
+          message
+        };
+      });
+
+      setConfirmedSellers(sellers);
+      setOrderConfirmed(true);
       queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
-      setShowCheckoutModal(false);
-      alert("Order placed successfully! 🎉");
-      navigate("/profile");
     } catch (err) {
       console.error("Checkout error:", err);
       alert("Failed to place order. Please try again.");
     } finally {
       setCheckingOut(false);
     }
+  };
+
+  const handleSendWhatsApp = (seller: any) => {
+    const whatsappUrl = `https://wa.me/${seller.phone}?text=${encodeURIComponent(seller.message)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   if (!isAuthenticated) {
@@ -131,7 +198,7 @@ export default function Cart() {
                   <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-2xl">
-                    {item.type === "food" ? "🍕" : "📦"}
+                    {item.type === "food" ? "" : ""}
                   </div>
                 )}
               </div>
@@ -261,40 +328,101 @@ export default function Cart() {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  Delivery Address
-                </label>
-                <textarea
-                  value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="Enter your delivery address (room number, hostel, campus location...)"
-                  className="w-full px-4 py-3 border border-border rounded-xl text-sm focus:border-[#0A2342] focus:ring-2 focus:ring-[#0A2342]/10 outline-none transition-all resize-none"
-                  rows={4}
-                  disabled={checkingOut}
-                />
-              </div>
-              <div className="bg-muted/50 rounded-xl p-4 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Items ({cart?.itemCount})</span>
-                  <span className="font-medium">{formatKES(cart?.total || 0)}</span>
+              {!orderConfirmed ? (
+                <>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-semibold text-foreground">
+                        Delivery Address
+                      </label>
+                      <button
+                        onClick={handleGetLocation}
+                        disabled={gettingLocation}
+                        className="text-[10px] font-bold bg-[#0A2342]/5 text-[#0A2342] px-2 py-1 rounded-lg hover:bg-[#0A2342]/10 transition-colors flex items-center gap-1"
+                      >
+                        {gettingLocation ? "📍 Getting..." : "📍 Use Live Location"}
+                      </button>
+                    </div>
+                    <textarea
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      placeholder="Enter your delivery address or hostel/room number..."
+                      className="w-full px-4 py-3 border border-border rounded-xl text-sm focus:border-[#0A2342] focus:ring-2 focus:ring-[#0A2342]/10 outline-none transition-all resize-none"
+                      rows={4}
+                      disabled={checkingOut}
+                    />
+                  </div>
+                  <div className="bg-muted/50 rounded-xl p-4 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Items ({cart?.itemCount})</span>
+                      <span className="font-medium">{formatKES(cart?.total || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Delivery</span>
+                      <span className="text-[#1A7A4A] font-medium">FREE</span>
+                    </div>
+                    <div className="border-t border-border pt-2 flex justify-between items-center">
+                      <span className="font-bold text-foreground">Total</span>
+                      <span className="font-display font-bold text-xl text-[#1A7A4A]">{formatKES(cart?.total || 0)}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleConfirmCheckout}
+                    disabled={checkingOut || !deliveryAddress.trim()}
+                    className="w-full py-3.5 bg-[#0A2342] text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {checkingOut ? "Processing..." : "Confirm Order"}
+                  </button>
+                </>
+              ) : (
+                <div className="text-center space-y-6 py-4">
+                  <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl">
+                    ✓
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-[#0A2342]">Order Confirmed!</h3>
+                    <p className="text-sm text-muted-foreground mt-2 px-4">
+                      Your order has been recorded. Now, please notify the seller(s) on WhatsApp to finalize the purchase.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-3 pt-2">
+                    {confirmedSellers.map((seller, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSendWhatsApp(seller)}
+                        className="w-full py-4 bg-[#25D366] text-white font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      >
+                        <MessageCircle className="w-6 h-6" />
+                        Notify @{seller.username}
+                      </button>
+                    ))}
+                    
+                    <button
+                      onClick={() => {
+                        const allItems = cart?.items.map((i: any) => `- ${i.title} (x${i.quantity}) from @${i.sellerUsername}`).join('\n');
+                        const adminMsg = `📦 *New CampusMart Order*\n\n*Buyer:* @${user?.username}\n*Total:* KES ${cart?.total}\n\n*Items:*\n${allItems}\n\n*Delivery:* ${deliveryAddress}`;
+                        const adminPhone = "254712345678"; // User can update this
+                        window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(adminMsg)}`, '_blank');
+                      }}
+                      className="w-full py-3 bg-[#0A2342] text-white font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                      Notify Admin (My WhatsApp)
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowCheckoutModal(false);
+                      navigate("/profile");
+                    }}
+                    className="text-sm font-semibold text-muted-foreground hover:text-[#0A2342] transition-colors pt-4 block w-full"
+                  >
+                    Close and View Profile
+                  </button>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Delivery</span>
-                  <span className="text-[#1A7A4A] font-medium">FREE</span>
-                </div>
-                <div className="border-t border-border pt-2 flex justify-between items-center">
-                  <span className="font-bold text-foreground">Total</span>
-                  <span className="font-display font-bold text-xl text-[#1A7A4A]">{formatKES(cart?.total || 0)}</span>
-                </div>
-              </div>
-              <button
-                onClick={handleConfirmCheckout}
-                disabled={checkingOut || !deliveryAddress.trim()}
-                className="w-full py-3.5 bg-[#0A2342] text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {checkingOut ? "Processing..." : "Confirm Order"}
-              </button>
+              )}
             </div>
           </div>
         </div>

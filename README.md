@@ -1,335 +1,202 @@
-# CampusMart V2 - Campus Marketplace Platform
+# CampusMart V2
 
-A comprehensive campus marketplace platform built with Express.js, React, and PostgreSQL. Features include product marketplace, food ordering, room rentals, and user authentication.
+A modern campus marketplace application built with React, TypeScript, and Node.js. Students can buy/sell products, find accommodation, order food, and connect with each other.
 
-## 🚀 Quick Start
+## Features
 
-### Prerequisites
-- Node.js 20.11+
-- pnpm
-- PostgreSQL
+- **Marketplace**: Buy and sell products with categories (books, electronics, fashion, stationery)
+- **Accommodation**: Find and list rooms, hostels, and apartments near campus
+- **Food Delivery**: Order from campus food vendors
+- **User Authentication**: Secure login and registration system
+- **Shopping Cart**: Add items to cart and checkout with WhatsApp integration
+- **Responsive Design**: Mobile-first design that works on all devices
+- **Real-time Notifications**: Stay updated with order status and messages
 
-### Installation
+## Tech Stack
 
-```bash
-# Install dependencies
-pnpm install
+### Frontend
+- **React 18** with TypeScript
+- **Vite** for fast development and building
+- **Tailwind CSS** for styling
+- **Lucide React** for icons
+- **Wouter** for routing
+- **TanStack Query** for data fetching
 
-# Create database
-createdb -U postgres campusmart
+### Backend
+- **Node.js** with Express
+- **TypeScript** for type safety
+- **Local JSON Database** for data persistence
+- **Zod** for data validation
+- **Pino** for logging
 
-# Push database schema
-cd lib/db
-pnpm run push
-cd ../..
-
-# Start development servers
-pnpm run dev
-```
-
-Access the application at:
-- Frontend: http://localhost:5173
-- API: http://localhost:5001
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 CampusMart-V2/
 ├── artifacts/
-│   ├── api-server/          # Express API backend
-│   │   └── src/
-│   │       ├── routes/      # API endpoints
-│   │       ├── lib/         # Utilities
-│   │       ├── middlewares/ # Express middlewares
-│   │       ├── app.ts       # Express app setup
-│   │       └── index.ts     # Server entry point
-│   └── campusmart/          # React frontend
-├── lib/
-│   ├── db/                  # Database schemas & migrations
-│   ├── api-zod/             # Validation schemas
-│   └── api-client-react/    # React API client
-└── package.json             # Workspace config
+│   ├── api-server/          # Backend API server
+│   │   ├── src/
+│   │   │   ├── routes/      # API routes
+│   │   │   ├── lib/         # Utilities and storage
+│   │   │   └── middlewares/ # Express middlewares
+│   │   └── local-laptop-database.json # Local database
+│   └── campusmart/          # Frontend React app
+│       ├── src/
+│       │   ├── components/  # React components
+│       │   ├── pages/       # Page components
+│       │   ├── lib/         # Utilities and contexts
+│       │   └── styles/      # CSS styles
+│       └── public/          # Static assets
+└── lib/                     # Shared libraries
+    ├── api-client-react/    # React API client
+    ├── api-spec/           # API specifications
+    └── api-zod/            # Zod schemas
 ```
 
-## 🔌 API Endpoints
+## Getting Started
+
+### Prerequisites
+- Node.js 18+ 
+- npm or pnpm
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd CampusMart-V2
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   pnpm install
+   ```
+
+3. **Start the development servers**
+   
+   **Option 1: Using the batch script (Windows)**
+   ```bash
+   ./run-dev.bat
+   ```
+   
+   **Option 2: Manual start**
+   ```bash
+   # Terminal 1 - Start API server
+   cd artifacts/api-server
+   npm run dev
+   
+   # Terminal 2 - Start frontend
+   cd artifacts/campusmart  
+   npm run dev
+   ```
+
+4. **Access the application**
+   - Frontend: http://localhost:5173
+   - API Server: http://localhost:3001
+
+## Key Features
 
 ### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
+- User registration and login
+- JWT-based authentication
+- Role-based access (student, admin)
+
+### Marketplace
+- Product listing with images and details
+- Category-based browsing
+- Search and filter functionality
+- Seller contact information
+
+### Shopping Cart & Checkout
+- Add/remove items from cart
+- Quantity management
+- WhatsApp integration for seller communication
+- Order tracking
+
+### Accommodation
+- Room and hostel listings
+- Detailed property information
+- Contact landlords directly
+- Filter by price, type, and location
+
+### Food Delivery
+- Browse food vendors
+- Menu with categories
+- Order placement and tracking
+
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
 - `GET /api/auth/me` - Get current user
-- `POST /api/auth/logout` - Logout user
 
 ### Products
-- `GET /api/products` - Get all products (with filters)
-- `POST /api/products` - Create product (auth required)
+- `GET /api/products` - List products
+- `POST /api/products` - Create product
 - `GET /api/products/:id` - Get product details
-- `PUT /api/products/:id` - Update product (auth required)
-- `DELETE /api/products/:id` - Delete product (auth required)
-- `GET /api/products/seller/:sellerId` - Get seller's products
+- `PUT /api/products/:id` - Update product
+- `DELETE /api/products/:id` - Delete product
 
 ### Cart
-- `GET /api/cart` - Get user's cart (auth required)
-- `POST /api/cart/add` - Add item to cart (auth required)
-- `PUT /api/cart/:id` - Update cart item quantity (auth required)
-- `DELETE /api/cart/:id` - Remove item from cart (auth required)
-- `DELETE /api/cart` - Clear cart (auth required)
+- `GET /api/cart` - Get user cart
+- `POST /api/cart` - Add item to cart
+- `PUT /api/cart/:id` - Update cart item
+- `DELETE /api/cart/:id` - Remove cart item
 
 ### Orders
-- `GET /api/orders` - Get user's orders (auth required)
-- `GET /api/orders/:id` - Get order details (auth required)
-- `POST /api/orders/checkout` - Create order from cart (auth required)
-- `PUT /api/orders/:id/status` - Update order status
-- `POST /api/orders/:id/cancel` - Cancel order (auth required)
+- `GET /api/orders` - Get user orders
+- `POST /api/orders` - Create order (checkout)
 
-### Wishlist & Categories
-- `GET /api/categories` - Get all categories
-- `GET /api/categories/wishlist` - Get user's wishlist (auth required)
-- `POST /api/categories/wishlist/add` - Add to wishlist (auth required)
-- `DELETE /api/categories/wishlist/:productId` - Remove from wishlist (auth required)
+## Development
 
-### Rooms
-- `GET /api/rooms` - Get all room listings (with filters)
-- `POST /api/rooms` - Create room listing (auth required)
-- `GET /api/rooms/:id` - Get room details
-- `PUT /api/rooms/:id` - Update room listing (auth required)
-- `DELETE /api/rooms/:id` - Delete room listing (auth required)
-- `GET /api/rooms/landlord/:landlordId` - Get landlord's rooms
+### Environment Variables
+Create `.env` files in both frontend and backend directories:
 
-### Food
-- `GET /api/food/vendors` - Get all food vendors (with filters)
-- `GET /api/food/vendors/:id` - Get vendor details
-- `POST /api/food/vendors` - Create food vendor (auth required)
-- `GET /api/food/items/vendor/:vendorId` - Get vendor's food items
-- `POST /api/food/items` - Create food item (auth required)
-- `PUT /api/food/items/:id` - Update food item (auth required)
-- `DELETE /api/food/items/:id` - Delete food item (auth required)
-
-### Users
-- `GET /api/users/profile` - Get user profile (auth required)
-- `GET /api/users/:id` - Get user by ID
-- `PUT /api/users/profile` - Update user profile (auth required)
-- `POST /api/users/change-password` - Change password (auth required)
-- `GET /api/users/stats/seller` - Get seller stats (auth required)
-- `GET /api/users/search/:query` - Search users
-
-## 🗄️ Database Schema
-
-### Users Table
-- `id` - Primary key
-- `email` - Unique email
-- `phone` - Unique phone number
-- `username` - Unique username
-- `passwordHash` - Hashed password
-- `campus` - Campus name
-- `avatarUrl` - Profile picture URL
-- `role` - User role (student/admin)
-- `createdAt` - Creation timestamp
-
-### Products Table
-- `id` - Primary key
-- `sellerId` - Foreign key to users
-- `title` - Product title
-- `description` - Product description
-- `price` - Current price
-- `originalPrice` - Original price (for discounts)
-- `category` - Product category
-- `condition` - Item condition (new/like_new/good/fair)
-- `campus` - Campus location
-- `images` - Array of image URLs
-- `stock` - Available quantity
-- `status` - Product status (active/sold/paused)
-- `badge` - Badge type (HOT/NEW/SALE)
-- `featured` - Featured flag
-- `createdAt` - Creation timestamp
-
-### Cart Items Table
-- `id` - Primary key
-- `userId` - Foreign key to users
-- `productId` - Foreign key to products
-- `quantity` - Item quantity
-- `createdAt` - Creation timestamp
-
-### Wishlist Table
-- `id` - Primary key
-- `userId` - Foreign key to users
-- `productId` - Foreign key to products
-- `createdAt` - Creation timestamp
-
-### Orders Table
-- `id` - Primary key
-- `orderId` - Unique order ID
-- `buyerId` - Foreign key to users
-- `items` - JSON array of order items
-- `totalAmount` - Total order amount
-- `status` - Order status (pending/confirmed/shipped/delivered/cancelled)
-- `deliveryAddress` - Delivery address
-- `createdAt` - Creation timestamp
-- `updatedAt` - Last update timestamp
-
-### Rooms Table
-- `id` - Primary key
-- `landlordId` - Foreign key to users
-- `title` - Room title
-- `description` - Room description
-- `type` - Room type (bedsitter/single/one_bedroom/two_bedroom/hostel)
-- `monthlyRent` - Monthly rent amount
-- `campus` - Campus location
-- `distanceToCampus` - Distance to campus
-- `images` - Array of image URLs
-- `amenities` - Array of amenities
-- `available` - Availability flag
-- `landlordPhone` - Landlord phone number
-- `createdAt` - Creation timestamp
-
-### Food Vendors Table
-- `id` - Primary key
-- `name` - Vendor name
-- `campus` - Campus location
-- `bannerImage` - Banner image URL
-- `rating` - Vendor rating
-- `deliveryTime` - Estimated delivery time
-- `minOrder` - Minimum order amount
-- `categories` - Array of food categories
-- `isOpen` - Open/closed status
-- `createdAt` - Creation timestamp
-
-### Food Items Table
-- `id` - Primary key
-- `vendorId` - Foreign key to food vendors
-- `name` - Item name
-- `description` - Item description
-- `price` - Item price
-- `image` - Item image URL
-- `category` - Food category
-- `available` - Availability flag
-- `createdAt` - Creation timestamp
-
-## 🔐 Authentication
-
-The API uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:
-
+**Backend (.env)**
 ```
-Authorization: Bearer <token>
+NODE_ENV=development
+PORT=3001
+JWT_SECRET=your-jwt-secret
 ```
 
-Tokens are valid for 7 days.
-
-## 🛠️ Available Scripts
-
-### Root Level
-```bash
-pnpm run dev          # Start both API and frontend
-pnpm run build        # Build all packages
-pnpm run typecheck    # Type check all packages
+**Frontend (.env)**
 ```
-
-### API Server
-```bash
-cd artifacts/api-server
-pnpm run dev          # Build and start in dev mode
-pnpm run build        # Build for production
-pnpm run start        # Start the built server
-```
-
-### Frontend
-```bash
-cd artifacts/campusmart
-pnpm run dev          # Start dev server
-pnpm run build        # Build for production
-pnpm run serve        # Preview production build
+VITE_API_URL=http://localhost:3001/api
 ```
 
 ### Database
+The application uses a local JSON file (`local-laptop-database.json`) as the database for development. This provides:
+- Fast development without database setup
+- Data persistence between server restarts
+- Easy data inspection and modification
+
+### Building for Production
+
 ```bash
-cd lib/db
-pnpm run push         # Push schema to database
-pnpm run push-force   # Force push schema
-```
-
-## 📝 Features
-
-### Marketplace
-- Browse and search products by category, campus, and price
-- Create and manage product listings
-- Product images and detailed descriptions
-- Stock management
-- Product badges (NEW, SALE, HOT)
-
-### Shopping
-- Add items to cart
-- Manage cart quantities
-- Wishlist functionality
-- Checkout and order creation
-- Order tracking and status updates
-
-### Room Rentals
-- Browse available rooms
-- Filter by type, campus, and price
-- Detailed room information with amenities
-- Landlord contact information
-
-### Food Ordering
-- Browse food vendors by campus
-- View vendor menus
-- Filter by category and rating
-- Delivery time and minimum order info
-
-### User Management
-- User registration and authentication
-- Profile management
-- Password change
-- User search functionality
-
-## 🔄 Environment Variables
-
-Create `.env` file in the root directory:
-
-```env
-# Database
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/campusmart
-
-# API Server
-PORT=5001
-NODE_ENV=development
-JWT_SECRET=campusmart-secret-2024-dev
-
-# Frontend
-VITE_API_URL=http://localhost:5001
-```
-
-## 📦 Dependencies
-
-### Backend
-- Express.js - Web framework
-- Drizzle ORM - Database ORM
-- PostgreSQL - Database
-- JWT - Authentication
-- Pino - Logging
-- CORS - Cross-origin requests
-
-### Frontend
-- React - UI framework
-- Vite - Build tool
-- TypeScript - Type safety
-- Shadcn/ui - UI components
-
-## 🚀 Deployment
-
-### Build for Production
-```bash
-pnpm run build
-```
-
-### Start Production Server
-```bash
+# Build backend
 cd artifacts/api-server
-pnpm run start
+npm run build
+
+# Build frontend  
+cd artifacts/campusmart
+npm run build
 ```
 
-## 📄 License
+## Contributing
 
-MIT
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-## 👥 Support
+## License
 
-For issues and questions, please create an issue in the repository.
+This project is licensed under the MIT License.
+
+## Support
+
+For support or questions, please contact the development team.

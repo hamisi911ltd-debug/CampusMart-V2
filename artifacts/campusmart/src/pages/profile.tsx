@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import SellModal from "@/components/sell-modal";
 
-type Tab = "account" | "orders" | "saved" | "settings";
+type Tab = "account" | "saved" | "settings";
 
 export default function Profile() {
   const queryClient = useQueryClient();
@@ -27,7 +27,7 @@ export default function Profile() {
     enabled: !!token,
     retry: 1,
     queryFn: async () => {
-      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const baseUrl = import.meta.env.VITE_API_URL ?? "";
       const resp = await fetch(`${baseUrl}/api/users/stats/seller`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -39,13 +39,11 @@ export default function Profile() {
     }
   });
 
-  const { data: orders, isLoading: ordersLoading } = useListOrders({
-    query: { enabled: !!token && activeTab === "orders" }
-  });
+
 
   const updateProfileObj = useMutation({
     mutationFn: async (data: { username?: string, campus?: string, phone?: string }) => {
-      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const baseUrl = import.meta.env.VITE_API_URL ?? "";
       const resp = await fetch(`${baseUrl}/api/users/profile`, {
         method: "PUT",
         headers: {
@@ -183,9 +181,8 @@ export default function Profile() {
       </div>
 
       {/* ── Quick Stats ── */}
-      <div className="grid grid-cols-3 gap-3 mt-5">
+      <div className="grid grid-cols-2 gap-3 mt-5">
         {[
-          { label: "Orders", value: stats?.totalSales ?? 0 },
           { label: "Listings", value: stats?.totalProducts ?? 0 },
           { label: "Rating", value: stats?.averageRating ? stats.averageRating.toFixed(1) : "—", icon: stats?.averageRating ? <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400 inline ml-0.5" /> : null },
         ].map((stat) => (
@@ -200,7 +197,7 @@ export default function Profile() {
 
       {/* ── Tab Bar ── */}
       <div className="flex bg-muted/60 rounded-2xl p-1 mt-6 gap-1">
-        {(["account","orders","saved","settings"] as Tab[]).map((tab) => (
+        {(["account","saved","settings"] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -279,56 +276,7 @@ export default function Profile() {
         </div>
       )}
 
-      {/* ── Tab: Orders ── */}
-      {activeTab === "orders" && (
-        <div className="mt-5">
-          {ordersLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted animate-pulse rounded-2xl" />)}
-            </div>
-          ) : orders?.length ? (
-            <div className="space-y-4">
-              {orders.map((order: any) => (
-                <div key={order.id} className="bg-white p-4 rounded-2xl border border-border hover:shadow-sm transition-all">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <p className="text-xs font-bold text-[#0A2342]">{order.orderId}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase">{new Date(order.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                      order.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                      order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                      'bg-blue-100 text-blue-700'
-                    }`}>
-                      {order.status}
-                    </span>
-                  </div>
-                  <div className="space-y-2 mb-3">
-                    {order.items?.map((item: any) => (
-                      <div key={item.productId} className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">{item.quantity}x {item.title}</span>
-                        <span className="font-semibold">KSh {item.price * item.quantity}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="pt-3 border-t flex justify-between items-center">
-                    <span className="text-sm font-bold text-[#0A2342]">Total</span>
-                    <span className="text-sm font-black text-[#0A2342]">KSh {order.totalAmount}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-16 text-center bg-white rounded-3xl border border-dashed border-border">
-              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
-                <Package className="w-8 h-8 text-blue-500" />
-              </div>
-              <h3 className="font-bold text-foreground mb-1">No orders yet</h3>
-              <p className="text-muted-foreground text-sm">Your purchase history will appear here.</p>
-            </div>
-          )}
-        </div>
-      )}
+
 
       {/* ── Tab: Saved ── */}
       {activeTab === "saved" && (

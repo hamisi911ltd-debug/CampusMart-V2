@@ -117,6 +117,7 @@ export interface Product {
   sellerId?: string;
   sellerUsername?: string;
   sellerAvatar?: string;
+  sellerPhone?: string;
   sellerRating?: number;
   isWishlisted?: boolean;
   createdAt?: string;

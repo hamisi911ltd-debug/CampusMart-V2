@@ -22,6 +22,7 @@ export default function Market() {
 
   const { data, isFetching, isLoading } = useListProducts({
     category: activeFilter === "All" ? undefined : activeFilter.toLowerCase(),
+    excludeCategories: activeFilter === "All" ? "food,houses" : undefined,
     search: search || undefined,
     page,
     limit: LIMIT,
@@ -77,7 +78,7 @@ export default function Market() {
   const clearSearch = () => { setSearchInput(""); setSearch(""); };
 
   return (
-    <div className="px-4 md:px-8 max-w-7xl mx-auto py-4 md:py-8 min-h-screen">
+    <div className="px-4 md:px-8 max-w-7xl mx-auto py-4 md:py-6 h-[calc(100vh-114px)] flex flex-col overflow-hidden">
       {/* Title & Search */}
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex items-center justify-between">
@@ -134,55 +135,56 @@ export default function Market() {
       )}
 
       {/* Grid */}
-      {isLoading && page === 1 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-muted animate-pulse rounded-2xl aspect-[3/4]" />
-          ))}
-        </div>
-      ) : allProducts.length > 0 ? (
-        <>
+      <div className="flex-1 overflow-y-auto hide-scrollbar pb-6 rounded-2xl">
+        {isLoading && page === 1 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
-            {allProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="bg-muted animate-pulse rounded-2xl aspect-[3/4]" />
             ))}
           </div>
-
-          {/* Loading more skeleton */}
-          {isFetching && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5 mt-3">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-muted animate-pulse rounded-2xl aspect-[3/4]" />
+        ) : allProducts.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
+              {allProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
-          )}
 
-          {/* Infinite scroll sentinel */}
-          <div ref={sentinelRef} className="h-10 mt-2" />
+            {/* Loading more skeleton */}
+            {isFetching && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5 mt-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="bg-muted animate-pulse rounded-2xl aspect-[3/4]" />
+                ))}
+              </div>
+            )}
 
-          {!hasMore && !isFetching && (
-            <p className="text-center text-muted-foreground text-sm py-6">
-              {allProducts.length} items shown — that's everything!
+            {/* Infinite scroll sentinel */}
+            <div ref={sentinelRef} className="h-10 mt-2" />
+
+            {!hasMore && !isFetching && (
+              <p className="text-center text-muted-foreground text-sm py-6">
+                {allProducts.length} items shown — that's everything!
+              </p>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-20 h-20 mb-4 text-5xl flex items-center justify-center bg-white rounded-3xl shadow-sm border border-border/50">
+            </div>
+            <h3 className="text-xl font-bold text-foreground mb-2">No items found</h3>
+            <p className="text-muted-foreground mb-6 text-sm">
+              {search ? `No results for "${search}"` : "Try a different category."}
             </p>
-          )}
-        </>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-20 h-20 mb-4 text-5xl flex items-center justify-center bg-white rounded-3xl shadow-sm border border-border/50">
-            📭
+            <button
+              onClick={() => { clearSearch(); setActiveFilter("All"); }}
+              className="px-6 py-2 bg-[#0A2342]/10 text-[#0A2342] font-semibold rounded-full hover:bg-[#0A2342]/20 transition-colors text-sm"
+            >
+              Clear Filters
+            </button>
           </div>
-          <h3 className="text-xl font-bold text-foreground mb-2">No items found</h3>
-          <p className="text-muted-foreground mb-6 text-sm">
-            {search ? `No results for "${search}"` : "Try a different category."}
-          </p>
-          <button
-            onClick={() => { clearSearch(); setActiveFilter("All"); }}
-            className="px-6 py-2 bg-[#0A2342]/10 text-[#0A2342] font-semibold rounded-full hover:bg-[#0A2342]/20 transition-colors text-sm"
-          >
-            Clear Filters
-          </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* FAB — Post Listing */}
       <button

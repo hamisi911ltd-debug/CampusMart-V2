@@ -1,6 +1,4 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { wishlistTable, productsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { extractUser } from "./auth";

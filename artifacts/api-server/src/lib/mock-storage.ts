@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-// A dedicated local JSON file on the user's laptop for testing
+// Enhanced laptop database with comprehensive sample data
 const DATA_FILE = path.join(process.cwd(), "local-laptop-database.json");
 
 interface MockDB {
@@ -12,16 +12,36 @@ interface MockDB {
   orders: any[];
   rooms: any[];
   cartItems: any[];
+  wishlist: any[];
+  lastUpdated: string;
+}
+
+function initializeSampleData(): MockDB {
+  return {
+    users: [],
+    products: [],
+    foodItems: [],
+    foodVendors: [],
+    orders: [],
+    rooms: [],
+    cartItems: [],
+    wishlist: [],
+    lastUpdated: new Date().toISOString(),
+  };
 }
 
 function loadData(): MockDB {
   try {
     if (fs.existsSync(DATA_FILE)) {
       const parsed = JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
+      console.log("📂 Loaded existing laptop database from:", DATA_FILE);
       
+      // Convert date strings back to Date objects
       const reviveDate = (items: any[]) => {
         if (!items) return;
-        items.forEach((u: any) => { if (u.createdAt) u.createdAt = new Date(u.createdAt); });
+        items.forEach((item: any) => { 
+          if (item.createdAt) item.createdAt = new Date(item.createdAt); 
+        });
       };
 
       reviveDate(parsed.users);
@@ -29,6 +49,7 @@ function loadData(): MockDB {
       reviveDate(parsed.foodItems);
       reviveDate(parsed.foodVendors);
       reviveDate(parsed.orders);
+      reviveDate(parsed.rooms);
       reviveDate(parsed.cartItems);
       
       return {
@@ -39,19 +60,25 @@ function loadData(): MockDB {
         orders: parsed.orders || [],
         rooms: parsed.rooms || [],
         cartItems: parsed.cartItems || [],
+        wishlist: parsed.wishlist || [],
+        lastUpdated: parsed.lastUpdated || new Date().toISOString(),
       };
     }
   } catch (err) {
-    console.warn("Failed to read local DB, initializing new one", err);
+    console.warn("❌ Failed to read laptop database, creating new one:", err);
   }
-  return { users: [], products: [], foodItems: [], foodVendors: [], orders: [], rooms: [], cartItems: [] };
+  
+  console.log("🆕 Creating new laptop database at:", DATA_FILE);
+  return initializeSampleData();
 }
 
 function saveData(data: MockDB) {
   try {
+    data.lastUpdated = new Date().toISOString();
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
+    console.log("💾 Saved laptop database to:", DATA_FILE);
   } catch (err) {
-    console.error("Failed to write to local DB", err);
+    console.error("❌ Failed to save laptop database:", err);
   }
 }
 
@@ -61,31 +88,8 @@ export function getLocalDB(): MockDB {
   if (!dbCache) {
     dbCache = loadData();
     
-    // Seed sample data if empty
-    if (dbCache.foodVendors.length === 0) {
-      dbCache.foodVendors.push({
-        id: "vendor1",
-        name: "Campus Eats",
-        campus: "Main Campus",
-        bannerImage: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=600&h=200&fit=crop",
-        rating: 4.5,
-        deliveryTime: "20-30 min",
-        minOrder: 500,
-        categories: ["Pizza", "Burgers"],
-        isOpen: true,
-        createdAt: new Date(),
-      });
-      dbCache.foodItems.push({
-        id: "food1",
-        vendorId: "vendor1",
-        name: "Margherita Pizza",
-        description: "Classic pizza with fresh mozzarella",
-        price: 1200,
-        image: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?q=80&w=300&h=300&fit=crop",
-        category: "Pizza",
-        available: true,
-        createdAt: new Date(),
-      });
+    // Auto-save on first load if new
+    if (!fs.existsSync(DATA_FILE)) {
       saveData(dbCache);
     }
   }
@@ -96,4 +100,21 @@ export function saveLocalDB() {
   if (dbCache) {
     saveData(dbCache);
   }
+}
+
+export function resetLocalDB(): MockDB {
+  console.log("🔄 Resetting laptop database...");
+  dbCache = {
+    users: [],
+    products: [],
+    foodItems: [],
+    foodVendors: [],
+    orders: [],
+    rooms: [],
+    cartItems: [],
+    wishlist: [],
+    lastUpdated: new Date().toISOString(),
+  };
+  saveData(dbCache);
+  return dbCache;
 }

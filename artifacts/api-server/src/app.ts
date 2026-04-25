@@ -31,4 +31,18 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use("/api", router);
 
+// Global error handler - ensure all errors return JSON
+app.use((err: any, _req: any, res: any, _next: any) => {
+  console.error("🔥 Unhandled error:", err);
+  res.status(err.status || 500).json({
+    error: err.message || "Internal server error",
+    details: process.env.NODE_ENV === "development" ? err.stack : undefined,
+  });
+});
+
+// 404 handler
+app.use((_req: any, res: any) => {
+  res.status(404).json({ error: "Route not found" });
+});
+
 export default app;

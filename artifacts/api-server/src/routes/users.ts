@@ -1,7 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { usersTable, productsTable, ordersTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { createHash } from "crypto";
 import { extractUser, mockUsers, useMockDB } from "./auth";
 import { getLocalDB, saveLocalDB } from "../lib/mock-storage";
@@ -11,6 +9,97 @@ const router: IRouter = Router();
 function hashPassword(password: string): string {
   return createHash("sha256").update(password + "campusmart-salt").digest("hex");
 }
+
+function generateId(): string {
+  return createHash("md5").update(Math.random().toString()).digest("hex");
+}
+
+// Get user wishlist
+router.get("/wishlist", async (req, res) => {
+  const userId = extractUser(req);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  try {
+    if (useMockDB) {
+      const dbInstance = getLocalDB();
+      const userWishlist = dbInstance.wishlist.filter(w => w.userId === userId);
+      const productIds = new Set(userWishlist.map(w => w.productId));
+      const wishlistProducts = dbInstance.products.filter(p => productIds.has(p.id));
+      res.json(wishlistProducts);
+      return;
+    }
+
+    const items = await db.select({
+      wishlist: wishlistTable,
+      product: productsTable,
+    }).from(wishlistTable)
+      .leftJoin(productsTable, eq(wishlistTable.productId, productsTable.id))
+      .where(eq(wishlistTable.userId, userId));
+
+    const wishlist = items.map(({ product }) => product).filter(Boolean);
+    res.json(wishlist);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to fetch wishlist" });
+  }
+});
+
+// Add to wishlist
+router.post("/wishlist", async (req, res) => {
+  const userId = extractUser(req);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  try {
+    const { productId } = req.body;
+    if (!productId) {
+      res.status(400).json({ error: "Product ID required" });
+      return;
+    }
+
+    if (useMockDB) {
+      const dbInstance = getLocalDB();
+      const existing = dbInstance.wishlist.find(w => w.userId === userId && w.productId === productId);
+      if (existing) {
+        dbInstance.wishlist = dbInstance.wishlist.filter(w => w.id !== existing.id);
+        saveLocalDB();
+        res.json({ success: true, message: "Removed from wishlist" });
+        return;
+      }
+      const newItem = { id: generateId(), userId, productId, createdAt: new Date().toISOString() };
+      dbInstance.wishlist.push(newItem);
+      saveLocalDB();
+      res.status(201).json(newItem);
+      return;
+    }
+
+    // Real DB
+    const [existing] = await db.select().from(wishlistTable)
+      .where(and(eq(wishlistTable.userId, userId), eq(wishlistTable.productId, productId)));
+
+    if (existing) {
+      // Toggle off
+      await db.delete(wishlistTable).where(eq(wishlistTable.id, existing.id));
+      res.json({ success: true, message: "Removed from wishlist" });
+      return;
+    }
+
+    const id = generateId();
+    const [item] = await db.insert(wishlistTable).values({
+      id,
+      userId,
+      productId,
+    }).returning();
+
+    res.status(201).json(item);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Failed to toggle wishlist" });
+  }
+});
 
 // Get user profile
 router.get("/profile", async (req, res) => {

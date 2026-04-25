@@ -1,6 +1,4 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
 import { createHash, randomBytes } from "crypto";
 import { sign, verify } from "jsonwebtoken";
@@ -25,31 +23,10 @@ if (dbInstance.cartItems) {
   });
   cartMap.forEach((items, userId) => mockCart.set(userId, items));
 }
-export let useMockDB = false;
+// Default to local JSON laptop database — no PostgreSQL required for local dev
+export let useMockDB = true;
 
-// Pre-fill a standard user for easy testing
-mockUsers.set("test-user-1", {
-  id: "test-user-1",
-  email: "student@campus.ac.ke",
-  phone: "0712345678",
-  username: "johndoe",
-  passwordHash: hashPassword("password123"),
-  campus: "University of Nairobi",
-  avatarUrl: null,
-  role: "student",
-  createdAt: new Date(),
-});
-
-// Test database connection on startup
-(async () => {
-  try {
-    await db.select().from(usersTable).limit(1);
-    console.log("✓ Database connection successful");
-  } catch (err) {
-    console.log("✗ Database connection failed, using mock storage");
-    useMockDB = true;
-  }
-})();
+console.log("✅ Using local laptop JSON database (no PostgreSQL needed)");
 
 function hashPassword(password: string): string {
   return createHash("sha256").update(password + "campusmart-salt").digest("hex");

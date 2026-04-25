@@ -1,9 +1,10 @@
 @echo off
-REM CampusMart V2 - Development Server Launcher
+REM CampusMart V2 - Development Server Launcher (Local Laptop Mode)
 
 echo.
 echo ========================================
-echo CampusMart V2 - Starting Development
+echo  CampusMart V2 - Local Development
+echo  Database: Laptop JSON File (No PostgreSQL)
 echo ========================================
 echo.
 
@@ -16,31 +17,45 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-echo Starting both API server and frontend...
+echo Step 1: Building API server...
+cd artifacts\api-server
+pnpm run build
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo ERROR: API server build failed. Check output above.
+    pause
+    exit /b 1
+)
+cd ..\..
+
+echo.
+echo Step 2: Starting servers in separate windows...
 echo.
 echo This will open 2 new windows:
-echo - API Server (port 5000)
-echo - Frontend (port 5173)
+echo   - API Server  ^> http://localhost:3001
+echo   - Frontend    ^> http://localhost:5173
 echo.
 echo Press any key to continue...
 pause
 
 REM Start API Server in new window
-start "CampusMart API Server" cmd /k "cd artifacts\api-server && pnpm run start"
+start "CampusMart API Server" cmd /k "cd /d "%~dp0artifacts\api-server" && pnpm run start"
 
 REM Wait a moment for API to start
-timeout /t 2 /nobreak
+timeout /t 3 /nobreak
 
 REM Start Frontend in new window
-start "CampusMart Frontend" cmd /k "cd artifacts\campusmart && pnpm run dev"
+start "CampusMart Frontend" cmd /k "cd /d "%~dp0artifacts\campusmart" && pnpm run dev"
 
 echo.
 echo ========================================
-echo Servers starting...
+echo  Servers starting...
 echo ========================================
 echo.
-echo Frontend: http://localhost:5173
-echo API: http://localhost:5000
+echo  Frontend : http://localhost:5173
+echo  API      : http://localhost:3001
+echo  Health   : http://localhost:3001/api/health
+echo  Database : Local Laptop JSON File
 echo.
 echo Check the new windows for server output.
 echo.

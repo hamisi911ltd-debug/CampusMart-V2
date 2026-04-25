@@ -1,25 +1,51 @@
-import { useRoute } from "wouter";
-import { useGetProduct, useAddToCart, useToggleWishlist, getGetCartQueryKey, getGetProductQueryKey } from "@workspace/api-client-react";
+import { useRoute, useLocation } from "wouter";
+import { useGetProduct, useToggleWishlist, getGetProductQueryKey, useAddToCart, getGetCartQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth-context";
 import { formatKES, cn } from "@/lib/utils";
-import { MapPin, Heart, ShoppingCart, ArrowLeft, ShieldCheck, Share2, User, CheckCircle } from "lucide-react";
+import { MapPin, Heart, ArrowLeft, ShieldCheck, Share2, User, MessageCircle } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function ProductDetail() {
   const [, params] = useRoute("/product/:id");
+  const [, navigate] = useLocation();
   const id = params?.id || "";
   const queryClient = useQueryClient();
 
   const { data: product, isLoading, isError } = useGetProduct(id);
   const { isAuthenticated, openAuthModal } = useAuth();
-  const addToCartMutation = useAddToCart();
   const wishlistMutation = useToggleWishlist();
+  const addToCartMutation = useAddToCart();
 
   const [activeImage, setActiveImage] = useState(0);
-  const [addedToCart, setAddedToCart] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [isAdded, setIsAdded] = useState(false);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8 text-center bg-background">
+        <div className="w-24 h-24 bg-[#0A2342]/10 rounded-full flex items-center justify-center text-5xl animate-pulse">
+          🔒
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold text-[#0A2342]">Login Required</h2>
+          <p className="text-muted-foreground max-w-xs mx-auto">
+            Please sign in or create an account to view product details and contact sellers.
+          </p>
+        </div>
+        <button 
+          onClick={openAuthModal}
+          className="px-10 py-4 bg-[#0A2342] text-white rounded-2xl font-bold shadow-xl hover:bg-[#0A2342]/90 hover:-translate-y-1 transition-all active:scale-95"
+        >
+          Sign In / Sign Up
+        </button>
+        <Link href="/market" className="text-sm font-medium text-muted-foreground hover:text-[#0A2342] transition-colors">
+          Back to Marketplace
+        </Link>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -42,24 +68,41 @@ export default function ProductDetail() {
     );
   }
 
+  const formatWhatsAppNumber = (phone: string | undefined) => {
+    if (!phone) return "254700000000"; // Fallback demo number if no seller phone found
+    // Remove all non-numeric characters
+    const cleanNumber = phone.replace(/\D/g, '');
+    // If it starts with 0, replace with 254
+    if (cleanNumber.startsWith('0')) {
+      return '254' + cleanNumber.substring(1);
+    }
+    // If it already starts with 254, use it
+    if (cleanNumber.startsWith('254')) {
+      return cleanNumber;
+    }
+    // Otherwise just return the cleaned number (might be international)
+    return cleanNumber;
+  };
+
+
+
   const handleAddToCart = async () => {
-    if (!isAuthenticated) { 
-      openAuthModal(); 
-      return; 
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
     }
     try {
       await addToCartMutation.mutateAsync({ 
         data: { 
           productId: product.id, 
-          quantity: quantity 
+          quantity 
         } 
       });
-      queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
-      setAddedToCart(true);
-      setTimeout(() => setAddedToCart(false), 2500);
+      await queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 2000);
     } catch (err) {
-      console.error("Add to cart error:", err);
-      alert("Failed to add to cart. Please try again.");
+      console.error(err);
     }
   };
 
@@ -200,57 +243,19 @@ export default function ProductDetail() {
                 </button>
               </div>
             </div>
-          )}
-
-          {/* Seller Info */}
-          <div className="border border-border rounded-2xl p-4 flex items-center justify-between bg-white shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0">
-                {product.sellerAvatar ? (
-                  <img src={product.sellerAvatar} alt="Seller" className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-5 h-5 text-muted-foreground" />
-                )}
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground font-medium">Sold by</p>
-                <p className="font-bold text-foreground text-sm">@{product.sellerUsername}</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => {
-                if (!isAuthenticated) {
-                  openAuthModal();
-                  return;
-                }
-                alert(`Chat feature coming soon! Contact @${product.sellerUsername} directly.`);
-              }}
-              className="px-4 py-2 border-2 border-[#0A2342]/20 text-[#0A2342] font-semibold rounded-xl hover:bg-[#0A2342]/5 text-sm transition-colors"
-            >
-              Chat
-            </button>
-          </div>
-
-          {/* Desktop Add to Cart */}
-          <div className="hidden md:block mt-auto pt-4">
+          )}          <div className="hidden md:block mt-auto pt-4">
             <button
               onClick={handleAddToCart}
-              disabled={addToCartMutation.isPending || !isActive}
+              disabled={!isActive || addToCartMutation.isPending}
               className={cn(
                 "w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all",
-                addedToCart
-                  ? "bg-[#1A7A4A] text-white"
-                  : isActive
-                  ? "bg-[#0A2342] text-white hover:-translate-y-1 hover:shadow-2xl active:scale-95"
+                isActive
+                  ? isAdded ? "bg-[#1A7A4A] text-white" : "bg-[#0A2342] text-white hover:-translate-y-1 hover:shadow-2xl active:scale-95"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
-              {addedToCart ? (
-                <><CheckCircle className="w-6 h-6" /> Added to Cart!</>
-              ) : addToCartMutation.isPending ? (
-                "Adding..."
-              ) : isActive ? (
-                <><ShoppingCart className="w-6 h-6" /> Add to Cart — {formatKES(product.price * quantity)}</>
+              {isActive ? (
+                isAdded ? "✓ Added to Cart" : <>Add to Cart — {formatKES(product.price * quantity)}</>
               ) : (
                 "Sold Out"
               )}
@@ -273,22 +278,16 @@ export default function ProductDetail() {
         </button>
         <button
           onClick={handleAddToCart}
-          disabled={addToCartMutation.isPending || !isActive}
+          disabled={!isActive || addToCartMutation.isPending}
           className={cn(
             "flex-1 flex items-center justify-center gap-2 font-bold text-base rounded-2xl shadow-lg transition-all",
-            addedToCart
-              ? "bg-[#1A7A4A] text-white"
-              : isActive
-              ? "bg-[#0A2342] text-white active:scale-95"
+            isActive
+              ? isAdded ? "bg-[#1A7A4A] text-white" : "bg-[#0A2342] text-white active:scale-95"
               : "bg-muted text-muted-foreground cursor-not-allowed"
           )}
         >
-          {addedToCart ? (
-            <><CheckCircle className="w-5 h-5" /> Added!</>
-          ) : addToCartMutation.isPending ? (
-            "Adding..."
-          ) : isActive ? (
-            <><ShoppingCart className="w-5 h-5" /> Add to Cart · {formatKES(product.price * quantity)}</>
+          {isActive ? (
+            isAdded ? "✓ Added" : "Add to Cart"
           ) : (
             "Sold Out"
           )}

@@ -1,6 +1,4 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { ordersTable, cartItemsTable, productsTable, foodItemsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { extractUser, mockCart } from "./auth";
@@ -81,7 +79,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // Create order from cart (checkout)
-router.post("/checkout", async (req, res) => {
+router.post("/", async (req, res) => {
   const userId = extractUser(req);
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });

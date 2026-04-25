@@ -2,8 +2,13 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+
 const port = Number(process.env.PORT) || 5173;
 const basePath = process.env.BASE_PATH || "/";
+// During development the Vite dev server proxies /api/* to the API server.
+// In production a single Express server hosts both the static files and the
+// API, so /api/* hits the same origin and no proxy is needed.
+const apiTarget = process.env.API_TARGET || "http://localhost:3001";
 
 export default defineConfig({
   base: basePath,
@@ -30,6 +35,14 @@ export default defineConfig({
     fs: {
       strict: false,
     },
+    // Proxy API calls to the backend during development
+    proxy: {
+      "/api": {
+        target: apiTarget,
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   preview: {
     port,
@@ -37,3 +50,4 @@ export default defineConfig({
     allowedHosts: true,
   },
 });
+

@@ -11,13 +11,13 @@ const CATEGORIES = [
   { name: "Food", image: "/images/cat_food.png", href: "/food" },
   { name: "Houses", image: "/images/cat_houses.png", href: "/houses" },
   { name: "Stationery", image: "/images/cat_stationery.png", href: "/market" },
-  { name: "Furniture", emoji: "🛋️", color: "bg-amber-100", href: "/market" },
+  { name: "Furniture", image: "/images/cat_furniture.png", href: "/market" },
 ];
 
 const BANNERS = [
-  { bg: "from-[#0A2342] to-[#1a3a6b]", tag: "MARKET", title: "Cheap Textbooks", emoji: "📚", href: "/market" },
-  { bg: "from-[#1A7A4A] to-[#14603A]", tag: "HOUSES", title: "Find a House", emoji: "🏠", href: "/houses" },
-  { bg: "from-[#D0282E] to-[#a81f24]", tag: "FOOD", title: "Late Night Bites", emoji: "🍔", href: "/food" },
+  { bg: "from-[#0A2342] to-[#1a3a6b]", tag: "MARKET", title: "Cheap Textbooks", href: "/market" },
+  { bg: "from-[#1A7A4A] to-[#14603A]", tag: "HOUSES", title: "Find a House", href: "/houses" },
+  { bg: "from-[#D0282E] to-[#a81f24]", tag: "FOOD", title: "Late Night Bites", href: "/food" },
 ];
 
 export default function Home() {
@@ -56,7 +56,7 @@ export default function Home() {
         {/* API Error Banner */}
         {hasError && (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm">
-            <p className="text-red-800 font-semibold">⚠️ Connection Issue</p>
+            <p className="text-red-800 font-semibold">Connection Issue</p>
             <p className="text-red-700 text-xs mt-1">Unable to load products. Make sure the API server is running on port 3001.</p>
           </div>
         )}
@@ -81,9 +81,6 @@ export default function Home() {
               href={banner.href}
               className={`min-w-[85%] md:min-w-[40%] shrink-0 snap-start rounded-3xl bg-gradient-to-br ${banner.bg} p-6 flex flex-col justify-between h-36 md:h-44 relative overflow-hidden hover:scale-[0.99] active:scale-[0.97] transition-all`}
             >
-              <div className="absolute -right-4 -bottom-4 text-[80px] md:text-[100px] opacity-25 select-none">
-                {banner.emoji}
-              </div>
               <span className="inline-block px-3 py-1 bg-white/20 text-white text-xs font-bold rounded-full w-max backdrop-blur-sm">
                 {banner.tag}
               </span>
@@ -111,7 +108,6 @@ export default function Home() {
                     />
                   ) : (
                     <div className={`w-full h-full flex items-center justify-center text-2xl ${cat.color}`}>
-                      {cat.emoji}
                     </div>
                   )}
                 </div>
@@ -124,7 +120,7 @@ export default function Home() {
         {/* Trending Products */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl md:text-2xl font-display font-bold text-foreground">🔥 Trending Near You</h2>
+            <h2 className="text-xl md:text-2xl font-display font-bold text-foreground">Trending Near You</h2>
             <Link href="/market" className="text-sm font-semibold text-[#1A7A4A] hover:underline flex items-center gap-1">
               View All <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -148,26 +144,8 @@ export default function Home() {
           )}
         </section>
 
-        {/* Recently Added */}
-        {recentData?.products && recentData.products.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl md:text-2xl font-display font-bold text-foreground">🆕 Just Listed</h2>
-              <Link href="/market" className="text-sm font-semibold text-[#1A7A4A] hover:underline flex items-center gap-1">
-                See More <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
-              {recentData.products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Promo banner */}
         <div className="bg-gradient-to-r from-[#0A2342] to-[#1a3a6b] rounded-3xl p-6 flex items-center justify-between overflow-hidden relative">
-          <div className="absolute right-0 top-0 w-40 h-full opacity-10 text-[120px] flex items-center">🛍️</div>
           <div className="relative z-10">
             <p className="text-white/80 text-xs font-bold uppercase tracking-wider mb-1">Sell on CampusMart</p>
             <h3 className="text-white text-xl font-display font-bold mb-1">Turn clutter into cash</h3>

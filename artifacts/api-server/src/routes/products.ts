@@ -1,11 +1,9 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { productsTable, usersTable, wishlistTable } from "@workspace/db";
-import { eq, ilike, and, desc, asc, sql } from "drizzle-orm";
+import { eq, ilike, and, desc, asc, sql, notInArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { sign, verify } from "jsonwebtoken";
 import { getLocalDB, saveLocalDB } from "../lib/mock-storage";
-import { extractUser, useMockDB } from "./auth";
+import { extractUser, useMockDB, mockUsers } from "./auth";
 
 const router: IRouter = Router();
 
@@ -24,7 +22,7 @@ function getMockProducts() {
 router.get("/", async (req, res) => {
   try {
     const userId = extractUser(req);
-    const { category, campus, search, sort, page = "1", limit = "20", featured } = req.query as any;
+    const { category, campus, search, sort, page = "1", limit = "20", featured, excludeCategories } = req.query as any;
 
     try {
       if (useMockDB) throw new Error("Mock DB active");
@@ -32,6 +30,7 @@ router.get("/", async (req, res) => {
         product: productsTable,
         sellerUsername: usersTable.username,
         sellerAvatar: usersTable.avatarUrl,
+        sellerPhone: usersTable.phone,
       }).from(productsTable).leftJoin(usersTable, eq(productsTable.sellerId, usersTable.id));
 
       const conditions = [eq(productsTable.status, "active")];
@@ -39,6 +38,9 @@ router.get("/", async (req, res) => {
       if (campus) conditions.push(eq(productsTable.campus, campus));
       if (search) conditions.push(ilike(productsTable.title, `%${search}%`));
       if (featured === "true") conditions.push(eq(productsTable.featured, true));
+      if (excludeCategories) {
+        conditions.push(notInArray(productsTable.category, excludeCategories.split(",")));
+      }
 
       const rows = await query.where(and(...conditions))
         .orderBy(
@@ -56,7 +58,7 @@ router.get("/", async (req, res) => {
         wishlistedIds = new Set(wl.map(w => w.productId));
       }
 
-      const products = rows.map(({ product, sellerUsername, sellerAvatar }) => ({
+      const products = rows.map(({ product, sellerUsername, sellerAvatar, sellerPhone }) => ({
         id: product.id,
         title: product.title,
         description: product.description,
@@ -72,6 +74,7 @@ router.get("/", async (req, res) => {
         sellerId: product.sellerId,
         sellerUsername: sellerUsername || "Unknown",
         sellerAvatar: sellerAvatar,
+        sellerPhone: sellerPhone,
         sellerRating: 4.5,
         isWishlisted: wishlistedIds.has(product.id),
         createdAt: product.createdAt,
@@ -90,62 +93,102 @@ router.get("/", async (req, res) => {
       });
     } catch (dbErr) {
       // Use mock data if database fails
-      let filtered = [...getMockProducts()];
-      
-      if (category && category !== "all") {
-        filtered = filtered.filter(p => p.category === category);
-      }
-      if (campus) {
-        filtered = filtered.filter(p => p.campus === campus);
-      }
-      if (search) {
-        filtered = filtered.filter(p => p.title.toLowerCase().includes(search.toLowerCase()));
-      }
-      if (featured === "true") {
-        filtered = filtered.filter(p => (p as any).featured);
-      }
+      try {
+        let filtered = [...getMockProducts()];
 
-      if (sort === "price_asc") {
-        filtered.sort((a, b) => a.price - b.price);
-      } else if (sort === "price_desc") {
-        filtered.sort((a, b) => b.price - a.price);
-      } else {
-        // newest
-        filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        console.log(`📦 Fetching products (mock) | Total in storage: ${filtered.length}`);
+
+        filtered = filtered.filter(p => p.status === "active");
+
+        console.log(`✓ Active products: ${filtered.length}`);
+
+        if (category && category !== "all") {
+          filtered = filtered.filter(p => p.category === category);
+        }
+        if (campus) {
+          filtered = filtered.filter(p => p.campus === campus);
+        }
+        if (search) {
+          filtered = filtered.filter(p => p.title.toLowerCase().includes(search.toLowerCase()));
+        }
+        if (featured === "true") {
+          filtered = filtered.filter(p => (p as any).featured);
+        }
+        if (excludeCategories) {
+          const excludeList = excludeCategories.split(",");
+          filtered = filtered.filter(p => !excludeList.includes(p.category));
+        }
+
+        // Safe date parser — handles both Date objects and ISO strings from JSON
+        const getTime = (d: any): number => {
+          if (!d) return 0;
+          if (d instanceof Date) return d.getTime();
+          return new Date(d).getTime();
+        };
+
+        if (sort === "price_asc") {
+          filtered.sort((a, b) => a.price - b.price);
+        } else if (sort === "price_desc") {
+          filtered.sort((a, b) => b.price - a.price);
+        } else {
+          filtered.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
+        }
+
+        const pageNum = Number(page);
+        const limitNum = Number(limit);
+        const start = (pageNum - 1) * limitNum;
+        const end = start + limitNum;
+        const paginatedProducts = filtered.slice(start, end).map(p => {
+          const sellerUser = mockUsers.get(p.sellerId);
+          return {
+            ...p,
+            sellerUsername: sellerUser ? sellerUser.username : p.sellerUsername,
+            sellerPhone: sellerUser ? sellerUser.phone : p.sellerPhone
+          };
+        });
+
+        res.json({
+          products: paginatedProducts,
+          total: filtered.length,
+          page: pageNum,
+          totalPages: Math.ceil(filtered.length / limitNum),
+        });
+      } catch (mockErr: any) {
+        console.error("❌ Mock products fallback error:", mockErr?.message, mockErr?.stack);
+        res.status(500).json({
+          error: "Failed to fetch products",
+          detail: process.env.NODE_ENV === "development" ? mockErr?.message : undefined,
+        });
       }
-
-      const pageNum = Number(page);
-      const limitNum = Number(limit);
-      const start = (pageNum - 1) * limitNum;
-      const end = start + limitNum;
-      const paginatedProducts = filtered.slice(start, end);
-
-      res.json({
-        products: paginatedProducts,
-        total: filtered.length,
-        page: pageNum,
-        totalPages: Math.ceil(filtered.length / limitNum),
-      });
     }
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Failed to fetch products" });
+  } catch (err: any) {
+    console.error("❌ Products route error:", err?.message, err?.stack);
+    res.status(500).json({
+      error: "Failed to fetch products",
+      detail: process.env.NODE_ENV === "development" ? err?.message : undefined,
+    });
   }
 });
 
 // Create a new product
 router.post("/", async (req, res) => {
-  const userId = extractUser(req);
+  let userId = extractUser(req);
+  
+  // For demo/testing: allow posting without auth, assign temp user
   if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
+    userId = "temp-user-" + Math.random().toString(36).substr(2, 9);
+    console.log("⚠️  No auth provided, using temp userId:", userId);
   }
+  
   try {
     const { title, description, price, originalPrice, category, condition, campus, images, stock } = req.body;
+    
     if (!title || !price || !category || !condition || !campus) {
-      res.status(400).json({ error: "Missing required fields" });
-      return;
+      console.error("❌ Missing fields:", { title, price, category, condition, campus });
+      return res.status(400).json({ error: "Missing required fields: title, price, category, condition, campus" });
     }
+
+    console.log(`📝 Creating product: "${title}" | Price: ${price} | Category: ${category}`);
 
     const id = generateId();
     try {
@@ -164,9 +207,13 @@ router.post("/", async (req, res) => {
         stock: stock || 1,
         badge: originalPrice && Number(originalPrice) > Number(price) ? "SALE" : "NEW",
       }).returning();
-      res.status(201).json(product);
+      console.log(`✅ Product created (DB): "${title}" | ID: ${id}`);
+      return res.status(201).json(product);
     } catch (dbErr) {
-      // Mock fallback — store in memory and JSON file so it shows up in subsequent GET calls
+      // Mock fallback — store in memory and JSON file
+      console.log(`💾 Using mock storage for product: "${title}"`);
+      const currentUser = mockUsers.get(userId);
+      
       const mockProduct: any = {
         id,
         title,
@@ -182,21 +229,29 @@ router.post("/", async (req, res) => {
         badge: originalPrice && Number(originalPrice) > Number(price) ? "SALE" : "NEW",
         featured: true,
         sellerId: userId,
-        sellerUsername: "you",
-        sellerAvatar: null as any,
+        sellerUsername: currentUser ? currentUser.username : "you",
+        sellerAvatar: currentUser ? currentUser.avatarUrl : null,
+        sellerPhone: currentUser ? currentUser.phone : null, // Store actual phone or null
         sellerRating: 5.0,
         isWishlisted: false,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       };
-      const dbInstance = getLocalDB();
       dbInstance.products.unshift(mockProduct);
       saveLocalDB();
       
-      res.status(201).json(mockProduct);
+      console.log(`✅ Product created (mock): "${title}" | Total products: ${dbInstance.products.length}`);
+      console.log("📤 Response body:", JSON.stringify(mockProduct));
+      
+      // Explicitly set headers and send JSON to ensure response body is sent
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      const jsonBody = JSON.stringify(mockProduct);
+      console.log("📤 JSON string length:", jsonBody.length);
+      res.status(201).send(jsonBody);
+      return;
     }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to create product" });
+  } catch (err: any) {
+    console.error("❌ Product creation error:", err?.message || err);
+    return res.status(500).json({ error: "Failed to create product", message: err?.message });
   }
 });
 
@@ -211,6 +266,7 @@ router.get("/:id", async (req, res) => {
         product: productsTable,
         sellerUsername: usersTable.username,
         sellerAvatar: usersTable.avatarUrl,
+        sellerPhone: usersTable.phone,
       }).from(productsTable)
         .leftJoin(usersTable, eq(productsTable.sellerId, usersTable.id))
         .where(eq(productsTable.id, req.params.id));
@@ -231,6 +287,7 @@ router.get("/:id", async (req, res) => {
         ...row.product,
         sellerUsername: row.sellerUsername || "Unknown",
         sellerAvatar: row.sellerAvatar,
+        sellerPhone: row.sellerPhone,
         sellerRating: 4.5,
         isWishlisted,
       });
@@ -241,7 +298,13 @@ router.get("/:id", async (req, res) => {
         res.status(404).json({ error: "Product not found" });
         return;
       }
-      res.json(product);
+      const sellerUser = mockUsers.get(product.sellerId);
+      
+      res.json({
+        ...product,
+        sellerUsername: sellerUser ? sellerUser.username : product.sellerUsername,
+        sellerPhone: sellerUser ? sellerUser.phone : product.sellerPhone
+      });
     }
   } catch (err) {
     req.log.error(err);

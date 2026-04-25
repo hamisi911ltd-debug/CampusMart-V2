@@ -1,71 +1,11 @@
 {
-  "users": [
-    {
-      "id": "57441de7b30084d15a64d81113895b3e",
-      "email": "hamisi@gmail.com",
-      "phone": "0759159881",
-      "username": "ALI",
-      "passwordHash": "052a0416efccda4800343cb32a7d91ec83b8fbb979e4a02c1611285e9c3eb599",
-      "campus": "University of Nairobi",
-      "avatarUrl": null,
-      "role": "student",
-      "createdAt": "2026-03-28T12:43:56.341Z"
-    },
-    {
-      "id": "f3ffb559c247e0df5634db25334a72e5",
-      "email": "HAMISI@GMAIL.COM",
-      "phone": "0759159881",
-      "username": "HAMISIrr",
-      "passwordHash": "679965053e09e425624455078afe6d11c4ace2b1231a0228f4b768ba4c4eb3c1",
-      "campus": "JKUAT",
-      "avatarUrl": null,
-      "role": "student",
-      "createdAt": "2026-04-04T06:24:09.869Z"
-    },
-    {
-      "id": "525c897c369b8b0b6cf74f0235a59762",
-      "email": "ali@gmail.com",
-      "phone": "0759159881",
-      "username": "ali",
-      "passwordHash": "438bb1dd51294be5f13695bd52b914531dd00042db3f9d0b92125043445ee72b",
-      "campus": "University of Nairobi",
-      "avatarUrl": null,
-      "role": "student",
-      "createdAt": "2026-04-05T18:35:48.814Z"
-    }
-  ],
+  "users": [],
   "products": [],
-  "foodItems": [
-    {
-      "id": "food1",
-      "vendorId": "vendor1",
-      "name": "Margherita Pizza",
-      "description": "Classic pizza with fresh mozzarella",
-      "price": 1200,
-      "image": "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?q=80&w=300&h=300&fit=crop",
-      "category": "Pizza",
-      "available": true,
-      "createdAt": "2026-04-04T05:40:55.897Z"
-    }
-  ],
-  "foodVendors": [
-    {
-      "id": "vendor1",
-      "name": "Campus Eats",
-      "campus": "Main Campus",
-      "bannerImage": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=600&h=200&fit=crop",
-      "rating": 4.5,
-      "deliveryTime": "20-30 min",
-      "minOrder": 500,
-      "categories": [
-        "Pizza",
-        "Burgers"
-      ],
-      "isOpen": true,
-      "createdAt": "2026-04-04T05:40:55.897Z"
-    }
-  ],
+  "foodItems": [],
+  "foodVendors": [],
   "orders": [],
   "rooms": [],
-  "cartItems": []
+  "cartItems": [],
+  "wishlist": [],
+  "lastUpdated": "2026-04-25T05:55:52.611Z"
 }

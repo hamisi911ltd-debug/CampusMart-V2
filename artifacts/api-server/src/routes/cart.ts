@@ -1,6 +1,4 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { cartItemsTable, productsTable, usersTable, foodItemsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { extractUser, mockCart } from "./auth";
@@ -45,9 +43,35 @@ router.get("/", async (req, res) => {
     if (useMockDB) {
       // Use mock storage
       const items = mockCart.get(userId) || [];
-      const total = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
-      const itemCount = items.reduce((sum: number, item: any) => sum + item.quantity, 0);
-      res.json({ items, total, itemCount });
+      
+      // Enhance items with seller information if missing
+      const dbInstance = getLocalDB();
+      const enhancedItems = items.map((item: any) => {
+        if (!item.sellerPhone || !item.sellerUsername) {
+          if (item.productId) {
+            const product = dbInstance.products.find((p: any) => p.id === item.productId);
+            const seller = dbInstance.users.find((u: any) => u.id === product?.sellerId);
+            return {
+              ...item,
+              sellerPhone: seller?.phone || null,
+              sellerUsername: seller?.username || "Unknown",
+            };
+          } else if (item.foodItemId) {
+            const foodItem = dbInstance.foodItems.find((f: any) => f.id === item.foodItemId);
+            const vendor = dbInstance.foodVendors.find((v: any) => v.id === foodItem?.vendorId);
+            return {
+              ...item,
+              sellerPhone: vendor?.phone || null,
+              sellerUsername: vendor?.name || "Unknown Vendor",
+            };
+          }
+        }
+        return item;
+      });
+      
+      const total = enhancedItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+      const itemCount = enhancedItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
+      res.json({ items: enhancedItems, total, itemCount });
       return;
     }
 
@@ -83,6 +107,8 @@ router.get("/", async (req, res) => {
         price: product?.price || 0,
         image: product?.images?.[0] || null,
         sellerUsername: seller?.username || "Unknown",
+        sellerId: product?.sellerId || null,
+        sellerPhone: seller?.phone || product?.sellerPhone || null,
         type: "product",
       };
     });
@@ -117,19 +143,33 @@ router.post("/", async (req, res) => {
       let itemPrice = 0;
       let itemTitle = "";
       let itemImage = null;
+      let sellerPhone = null;
+      let sellerUsername = null;
 
       if (productId) {
         const product = dbInstance.products.find((p: any) => p.id === productId);
         if (!product) return res.status(404).json({ error: "Product not found" });
+        
+        // Find seller information
+        const seller = dbInstance.users.find((u: any) => u.id === product.sellerId);
+        
         itemPrice = product.price;
         itemTitle = product.title;
         itemImage = product.images?.[0] || null;
+        sellerPhone = seller?.phone || null;
+        sellerUsername = seller?.username || "Unknown";
       } else {
         const foodItem = dbInstance.foodItems.find((f: any) => f.id === foodItemId);
         if (!foodItem) return res.status(404).json({ error: "Food item not found" });
+        
+        // Find vendor information
+        const vendor = dbInstance.foodVendors.find((v: any) => v.id === foodItem.vendorId);
+        
         itemPrice = foodItem.price;
         itemTitle = foodItem.name;
         itemImage = foodItem.image;
+        sellerPhone = vendor?.phone || null;
+        sellerUsername = vendor?.name || "Unknown Vendor";
       }
 
       const userCart = mockCart.get(userId) || [];
@@ -146,6 +186,8 @@ router.post("/", async (req, res) => {
           price: itemPrice,
           title: itemTitle,
           image: itemImage,
+          sellerPhone: sellerPhone,
+          sellerUsername: sellerUsername,
           type: productId ? "product" : "food",
           userId // For flat storage in JSON
         });

@@ -33,6 +33,7 @@ function Router() {
       <Route path="/food" component={Food} />
       <Route path="/houses" component={Houses} />
       <Route path="/profile" component={Profile} />
+
       <Route path="/cart" component={Cart} />
       <Route path="/product/:id" component={ProductDetail} />
       <Route component={NotFound} />

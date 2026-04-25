@@ -1,4 +1,5 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useState, useEffect } from "react";
 import { Heart, MapPin, Star, Clock, Wifi, Shield, Droplets, Sofa, ShoppingBag } from "lucide-react";
 import { cn, formatKES } from "@/lib/utils";
 import type { Product, Room, FoodVendor } from "@workspace/api-client-react";
@@ -11,8 +12,12 @@ export function ProductCard({ product }: { product: Product }) {
   const queryClient = useQueryClient();
   const toggleWishlist = useToggleWishlist();
 
+  const [, navigate] = useLocation();
+  const [isAnimating, setIsAnimating] = useState(false);
+
   const handleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!isAuthenticated) { openAuthModal(); return; }
     try {
       await toggleWishlist.mutateAsync({ data: { productId: product.id } });
@@ -23,9 +28,23 @@ export function ProductCard({ product }: { product: Product }) {
     }
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      openAuthModal();
+      return;
+    }
+    setIsAnimating(true);
+    setTimeout(() => {
+      navigate(`/product/${product.id}`);
+    }, 2000);
+  };
+
   return (
-    <Link
+    <>
+    <a
       href={`/product/${product.id}`}
+      onClick={handleCardClick}
       className="group block bg-card rounded-2xl overflow-hidden shadow-sm shadow-black/5 border border-border/60 hover:shadow-xl hover:shadow-[#0A2342]/5 hover:border-[#0A2342]/20 transition-all duration-300 active:scale-[0.98] relative"
     >
       {/* Image */}
@@ -38,7 +57,6 @@ export function ProductCard({ product }: { product: Product }) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-muted-foreground/10 text-4xl">
-            📦
           </div>
         )}
 
@@ -82,7 +100,34 @@ export function ProductCard({ product }: { product: Product }) {
           <span className="truncate">{product.campus}</span>
         </div>
       </div>
-    </Link>
+    </a>
+    
+    {isAnimating && (
+      <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" />
+        {[...Array(15)].map((_, i) => {
+          const size = Math.random() * 20 + 10;
+          return (
+            <div
+              key={i}
+              className="absolute animate-ping"
+              style={{
+                top: `${Math.random() * 100}%`,
+                left: `${Math.random() * 100}%`,
+                animationDuration: `${0.5 + Math.random()}s`,
+                animationDelay: `${Math.random() * 0.3}s`,
+              }}
+            >
+              <Star 
+                className="fill-yellow-400 text-yellow-400" 
+                style={{ width: size, height: size }} 
+              />
+            </div>
+          );
+        })}
+      </div>
+    )}
+    </>
   );
 }
 
@@ -103,7 +148,7 @@ export function RoomCard({ room }: { room: Room }) {
         {room.images && room.images.length > 0 ? (
           <img src={room.images[0]} alt={room.title} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-muted-foreground/10 text-4xl">🏠</div>
+          <div className="w-full h-full flex items-center justify-center bg-muted-foreground/10 text-4xl"></div>
         )}
         <div className={cn(
           "absolute top-2 right-2 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider",
@@ -147,14 +192,11 @@ export function RoomCard({ room }: { room: Room }) {
         </div>
 
         <div className="mt-auto pt-4 flex gap-3">
-          <a
-            href="tel:+254700000000"
-            className="flex-1 py-2.5 rounded-xl bg-[#0A2342] text-white font-semibold text-sm shadow-sm hover:bg-[#0A2342]/90 transition-all active:scale-95 text-center"
+          <button 
+            disabled={true}
+            className="flex-1 py-2.5 rounded-xl bg-muted text-muted-foreground font-semibold text-sm cursor-not-allowed"
           >
-            Contact Landlord
-          </a>
-          <button className="px-4 py-2.5 rounded-xl border-2 border-[#0A2342]/20 text-[#0A2342] font-semibold text-sm hover:bg-[#0A2342]/5 transition-colors">
-            View Details
+            {room.available ? "Viewing Only" : "Occupied"}
           </button>
         </div>
       </div>
@@ -201,15 +243,10 @@ export function VendorCard({ vendor }: { vendor: FoodVendor }) {
           </div>
         </div>
         <button
-          className={cn(
-            "mt-3 w-full py-2 rounded-xl text-sm font-semibold transition-all",
-            vendor.isOpen
-              ? "bg-[#D0282E] text-white hover:bg-[#D0282E]/90 active:scale-95"
-              : "bg-muted text-muted-foreground cursor-not-allowed"
-          )}
-          disabled={!vendor.isOpen}
+          className="mt-3 w-full py-2 rounded-xl text-sm font-semibold bg-muted text-muted-foreground cursor-not-allowed"
+          disabled={true}
         >
-          {vendor.isOpen ? "Order Now" : "Currently Closed"}
+          {vendor.isOpen ? "Menu Only" : "Currently Closed"}
         </button>
       </div>
     </div>

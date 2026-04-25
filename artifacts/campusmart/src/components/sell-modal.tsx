@@ -1,11 +1,10 @@
 import { useState, useRef } from "react";
 import { X, Camera, Package, CheckCircle, AlertCircle, Trash2, ImagePlus } from "lucide-react";
-import { useCreateProduct, getListProductsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
-const CATEGORIES = ["Books", "Electronics", "Fashion", "Stationery", "Services", "Furniture", "Food", "Other"];
+const CATEGORIES = ["Books", "Electronics", "Fashion", "Stationery", "Services", "Furniture", "Food", "Houses", "Other"];
 const CONDITIONS = ["new", "like_new", "good", "fair"] as const;
 const CAMPUSES = ["University of Nairobi", "Kenyatta University", "JKUAT", "Strathmore University", "Moi University"];
 
@@ -22,8 +21,7 @@ interface SellModalProps {
 
 export default function SellModal({ onClose }: SellModalProps) {
   const queryClient = useQueryClient();
-  const createProduct = useCreateProduct();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   // Form state
   const [title, setTitle] = useState("");
@@ -33,11 +31,12 @@ export default function SellModal({ onClose }: SellModalProps) {
   const [category, setCategory] = useState("Books");
   const [condition, setCondition] = useState("good");
   const [campus, setCampus] = useState(user?.campus || CAMPUSES[0]);
-  const [images, setImages] = useState<string[]>([]);     // base64 data-URLs
-  const [previews, setPreviews] = useState<string[]>([]);  // same, for UI
+  const [images, setImages] = useState<string[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [step, setStep] = useState<1 | 2>(1); // step 1 = details, step 2 = confirm
+  const [step, setStep] = useState<1 | 2>(1);
+  const [isLoading, setIsLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -103,38 +102,105 @@ export default function SellModal({ onClose }: SellModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
+    setIsLoading(true);
 
-    if (!title.trim()) { setErrorMsg("Please enter a title."); return; }
-    if (!price || Number(price) <= 0) { setErrorMsg("Please enter a valid price."); return; }
+    if (!title.trim()) { 
+      setErrorMsg("Please enter a title."); 
+      setIsLoading(false);
+      return; 
+    }
+    if (!price || Number(price) <= 0) { 
+      setErrorMsg("Please enter a valid price."); 
+      setIsLoading(false);
+      return; 
+    }
     if (originalPrice && Number(originalPrice) <= Number(price)) {
-      setErrorMsg("Original price must be higher than selling price."); return;
+      setErrorMsg("Original price must be higher than selling price."); 
+      setIsLoading(false);
+      return;
     }
 
     try {
-      await createProduct.mutateAsync({
-        data: {
-          title: title.trim(),
-          description: description.trim() || undefined,
-          price: Number(price),
-          originalPrice: originalPrice ? Number(originalPrice) : undefined,
-          category: category.toLowerCase(),
-          condition,
-          campus,
-          images: images.length > 0 ? images : undefined,
-          stock: 1,
+      const baseUrl = import.meta.env.VITE_API_URL ?? "";
+      
+      const productData = {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        price: Number(price),
+        originalPrice: originalPrice ? Number(originalPrice) : undefined,
+        category: category.toLowerCase(),
+        condition,
+        campus,
+        images: images.length > 0 ? images : undefined,
+        stock: 1,
+      };
+
+      console.log("📤 Posting product:", productData);
+
+      const response = await fetch(`${baseUrl}/api/products`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { "Authorization": `Bearer ${token}` }),
         },
+        body: JSON.stringify(productData),
       });
 
-      // Global refresh so pagination resets to page 1 and item shows at top
-      queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+      console.log(`📨 Response status: ${response.status}`);
+
+      // Get response text first
+      const responseText = await response.text();
+      console.log("📄 Response body:", responseText || "(empty)");
+      console.log("📄 Response text length:", responseText.length);
+
+      // Handle empty response
+      if (!responseText || responseText.trim() === "") {
+        if (response.ok) {
+          console.warn("⚠️ Server returned 201 but empty body - treating as success");
+          setSuccess(true);
+          queryClient.clear();
+          setTimeout(() => {
+            onClose();
+          }, 1500);
+          return;
+        }
+        throw new Error("Server returned empty response");
+      }
+
+      // Try to parse as JSON
+      let responseData: any;
+      try {
+        responseData = JSON.parse(responseText);
+        console.log("✅ Parsed response:", responseData);
+      } catch (parseErr) {
+        console.error("❌ Failed to parse response:", parseErr);
+        throw new Error(`Server returned invalid JSON: ${responseText.substring(0, 100)}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(responseData.error || responseData.message || `Server error (${response.status})`);
+      }
+
+      if (!responseData?.id && !responseData?.title) {
+        console.error("⚠️ Response missing id/title:", responseData);
+        throw new Error("Invalid product response from server");
+      }
+
+      console.log("✅ Product successfully posted:", responseData);
+
+      // Clear all caches and force refetch
+      queryClient.clear();
+      
       setSuccess(true);
       setTimeout(() => {
         onClose();
       }, 1500);
     } catch (err: any) {
-      const msg =
-        err?.data?.message || err?.data?.error || err?.message || "Failed to post listing. Please try again.";
+      const msg = err?.message || "Failed to post listing. Please try again.";
+      console.error("❌ Product posting failed:", msg);
       setErrorMsg(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -147,7 +213,7 @@ export default function SellModal({ onClose }: SellModalProps) {
           <div className="w-20 h-20 bg-[#1A7A4A]/10 rounded-full flex items-center justify-center mb-5">
             <CheckCircle className="w-10 h-10 text-[#1A7A4A]" />
           </div>
-          <h3 className="text-2xl font-bold text-[#0A2342] mb-2">Listing Posted! 🎉</h3>
+          <h3 className="text-2xl font-bold text-[#0A2342] mb-2">Listing Posted!</h3>
           <p className="text-muted-foreground text-sm">Your item is now live on the marketplace.</p>
         </div>
       </div>
@@ -389,15 +455,15 @@ export default function SellModal({ onClose }: SellModalProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={createProduct.isPending}
+                  disabled={isLoading}
                   className="flex-1 py-3 bg-[#1A7A4A] text-white font-bold rounded-xl hover:bg-[#1A7A4A]/90 active:scale-95 transition-all disabled:opacity-50"
                 >
-                  {createProduct.isPending ? (
+                  {isLoading ? (
                     <span className="flex items-center justify-center gap-2">
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       Posting...
                     </span>
-                  ) : "Post Listing 🚀"}
+                  ) : "Post Listing"}
                 </button>
               </div>
             </>
