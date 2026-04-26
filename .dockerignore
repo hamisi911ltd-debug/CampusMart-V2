@@ -17,3 +17,14 @@ build
 .cache
 .temp
 .tmp
+artifacts/*/node_modules
+artifacts/*/dist
+artifacts/*/.env
+artifacts/*/.env.local
+.qodo
+test-auth.ps1
+run-dev.bat
+*.png
+DEPLOYMENT.md
+RAILWAY_DEPLOYMENT_READY.md
+build.sh

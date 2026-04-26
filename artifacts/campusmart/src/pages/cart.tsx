@@ -1,7 +1,8 @@
 import { useAuth } from "@/lib/auth-context";
 import { useGetCart, useRemoveCartItem, useUpdateCartItem, getGetCartQueryKey, useCreateOrder } from "@workspace/api-client-react";
 import { formatKES } from "@/lib/utils";
-import { Minus, Plus, Trash2, ArrowRight, ShoppingBag, X, MessageCircle } from "lucide-react";
+import { Minus, Plus, Trash2, ArrowRight, ShoppingBag, X } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";

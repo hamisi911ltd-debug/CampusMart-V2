@@ -1,0 +1,40 @@
+{
+  "users": [],
+  "products": [],
+  "orders": [],
+  "cart": [],
+  "categories": [
+    {
+      "id": "books",
+      "name": "Books",
+      "description": "Textbooks and academic materials"
+    },
+    {
+      "id": "electronics",
+      "name": "Electronics",
+      "description": "Gadgets and electronic devices"
+    },
+    {
+      "id": "fashion",
+      "name": "Fashion",
+      "description": "Clothing and accessories"
+    },
+    {
+      "id": "stationery",
+      "name": "Stationery",
+      "description": "Office and school supplies"
+    },
+    {
+      "id": "furniture",
+      "name": "Furniture",
+      "description": "Room and study furniture"
+    },
+    {
+      "id": "services",
+      "name": "Services",
+      "description": "Student services"
+    }
+  ],
+  "food": [],
+  "rooms": []
+}

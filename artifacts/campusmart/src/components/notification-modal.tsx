@@ -12,7 +12,7 @@ interface NotificationModalProps {
 export default function NotificationModal({ onClose }: NotificationModalProps) {
   const { isAuthenticated, token } = useAuth();
   const { data: orders } = useListOrders({
-    query: { enabled: !!token, staleTime: 60000 }
+    query: { queryKey: ["orders"], enabled: !!token, staleTime: 60000 }
   });
 
   // Build notifications from real orders + static welcome

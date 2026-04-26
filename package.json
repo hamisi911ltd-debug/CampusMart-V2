@@ -1,16 +1,23 @@
 {
-  "name": "workspace",
-  "version": "0.0.0",
-  "license": "MIT",
+  "name": "campusmart-v2",
+  "version": "2.0.0",
+  "description": "CampusMart - Campus Marketplace Platform",
+  "main": "server.js",
   "scripts": {
-    "dev": "pnpm --parallel --filter \"@workspace/api-server\" --filter \"@workspace/campusmart\" run dev",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
-    "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --if-present run typecheck"
+    "start": "node server.js",
+    "build": "node build-for-railway.js",
+    "dev": "node server.js",
+    "railway:build": "node build-for-railway.js",
+    "railway:start": "npm start"
   },
-  "private": true,
-  "devDependencies": {
-    "typescript": "~5.9.2",
-    "prettier": "^3.8.1"
-  }
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["marketplace", "campus", "students", "ecommerce"],
+  "author": "CampusMart Team",
+  "license": "MIT"
 }

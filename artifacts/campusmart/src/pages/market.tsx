@@ -22,7 +22,6 @@ export default function Market() {
 
   const { data, isFetching, isLoading } = useListProducts({
     category: activeFilter === "All" ? undefined : activeFilter.toLowerCase(),
-    excludeCategories: activeFilter === "All" ? "food,houses" : undefined,
     search: search || undefined,
     page,
     limit: LIMIT,

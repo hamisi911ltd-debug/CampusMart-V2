@@ -28,6 +28,7 @@ export default function Home() {
     limit: 8,
   }, {
     query: {
+      queryKey: ["products", "featured"],
       staleTime: 30000, // Cache for 30 seconds
       refetchOnWindowFocus: false,
     }
@@ -37,6 +38,7 @@ export default function Home() {
     limit: 6 
   }, {
     query: {
+      queryKey: ["products", "recent"],
       staleTime: 30000,
       refetchOnWindowFocus: false,
     }

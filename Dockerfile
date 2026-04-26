@@ -1,33 +1,46 @@
-# Use Node.js 18 LTS
+# Use Node.js 18 LTS Alpine for smaller image
 FROM node:18-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY pnpm-lock.yaml ./
-COPY pnpm-workspace.yaml ./
-
-# Install pnpm
+# Install pnpm globally
 RUN npm install -g pnpm
 
-# Copy all source code
+# Copy package files
+COPY package*.json ./
+COPY pnpm-lock.yaml* ./
+COPY pnpm-workspace.yaml* ./
+
+# Copy source code
 COPY . .
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies for frontend
+WORKDIR /app/artifacts/campusmart
+RUN npm install
 
-# Build the API server
-WORKDIR /app/artifacts/api-server
-RUN pnpm run build
+# Build frontend
+RUN npm run build
+
+# Copy built frontend to root
+WORKDIR /app
+RUN cp -r artifacts/campusmart/dist ./
+
+# Install production dependencies for server
+RUN npm install --only=production
+
+# Create database directory
+RUN mkdir -p /app/data
 
 # Expose port
-EXPOSE 3001
+EXPOSE $PORT
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3001) + '/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # Start the server
 CMD ["npm", "start"]
