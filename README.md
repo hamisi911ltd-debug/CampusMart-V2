@@ -1,202 +1,333 @@
-# CampusMart V2
+# CampusMart V2 - Campus Marketplace Platform
 
-A modern campus marketplace application built with React, TypeScript, and Node.js. Students can buy/sell products, find accommodation, order food, and connect with each other.
+A modern, full-featured campus marketplace platform built with React, Express, and Node.js. Buy, sell, and discover everything you need on campus.
 
-## Features
+## 🌟 Features
 
-- **Marketplace**: Buy and sell products with categories (books, electronics, fashion, stationery)
-- **Accommodation**: Find and list rooms, hostels, and apartments near campus
-- **Food Delivery**: Order from campus food vendors
-- **User Authentication**: Secure login and registration system
-- **Shopping Cart**: Add items to cart and checkout with WhatsApp integration
-- **Responsive Design**: Mobile-first design that works on all devices
-- **Real-time Notifications**: Stay updated with order status and messages
+### Core Marketplace
+- 📚 **Textbooks & Books** - Buy/sell academic materials
+- 🍕 **Food Delivery** - Order from campus restaurants
+- 🏠 **Housing** - Find rooms and apartments
+- 👕 **Fashion & Accessories** - Browse student fashion
+- 🛋️ **Furniture** - Buy/sell dorm furniture
+- 🎓 **Services** - Student services marketplace
 
-## Tech Stack
+### User Features
+- 👤 **User Authentication** - Secure registration and login
+- 🛒 **Shopping Cart** - Add/remove items, manage quantities
+- 💳 **Checkout** - Delivery address input and order confirmation
+- 📱 **WhatsApp Integration** - Direct seller contact via WhatsApp
+- ⭐ **Wishlist** - Save favorite items
+- 📦 **Order Tracking** - View order history and status
+- 🔔 **Notifications** - Real-time order updates
 
-### Frontend
-- **React 18** with TypeScript
-- **Vite** for fast development and building
-- **Tailwind CSS** for styling
-- **Lucide React** for icons
-- **Wouter** for routing
-- **TanStack Query** for data fetching
+### Admin Features
+- 📊 **Dashboard** - Sales analytics and metrics
+- 📝 **Content Management** - Manage products and categories
+- 👥 **User Management** - Manage user accounts
+- 📈 **Reports** - Sales and activity reports
 
-### Backend
-- **Node.js** with Express
-- **TypeScript** for type safety
-- **Local JSON Database** for data persistence
-- **Zod** for data validation
-- **Pino** for logging
+### Technical Features
+- 📱 **Responsive Design** - Works on mobile, tablet, desktop
+- 🎨 **Modern UI** - Built with Tailwind CSS and Radix UI
+- ⚡ **Fast Performance** - Optimized React components
+- 🔒 **Secure** - Token-based authentication
+- 💾 **Persistent Database** - JSON-based file storage
+- 🌐 **PWA Support** - Install as mobile app
+- 🚀 **Production Ready** - Railway deployment configured
 
-## Project Structure
+## 🚀 Quick Start
+
+### Local Development
+
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+2. **Start the server**
+   ```bash
+   npm start
+   ```
+
+3. **Access the application**
+   - Frontend: http://localhost:3001
+   - API: http://localhost:3001/api
+   - Health check: http://localhost:3001/api/health
+
+### Railway Deployment
+
+1. **Push to GitHub**
+   ```bash
+   git add .
+   git commit -m "Ready for Railway"
+   git push origin main
+   ```
+
+2. **Deploy on Railway**
+   - Go to [railway.app](https://railway.app)
+   - Click "Deploy from GitHub repo"
+   - Select CampusMart-V2
+   - Railway will automatically build and deploy
+
+3. **Access your app**
+   ```
+   https://your-app-name.railway.app
+   ```
+
+See [RAILWAY_SETUP.md](./RAILWAY_SETUP.md) for detailed deployment instructions.
+
+## 📁 Project Structure
 
 ```
 CampusMart-V2/
-├── artifacts/
-│   ├── api-server/          # Backend API server
-│   │   ├── src/
-│   │   │   ├── routes/      # API routes
-│   │   │   ├── lib/         # Utilities and storage
-│   │   │   └── middlewares/ # Express middlewares
-│   │   └── local-laptop-database.json # Local database
-│   └── campusmart/          # Frontend React app
-│       ├── src/
-│       │   ├── components/  # React components
-│       │   ├── pages/       # Page components
-│       │   ├── lib/         # Utilities and contexts
-│       │   └── styles/      # CSS styles
-│       └── public/          # Static assets
-└── lib/                     # Shared libraries
-    ├── api-client-react/    # React API client
-    ├── api-spec/           # API specifications
-    └── api-zod/            # Zod schemas
+├── server.js                 # Unified Express server
+├── build-for-railway.js      # Build script for Railway
+├── package.json              # Server dependencies
+├── railway.json              # Railway configuration
+├── nixpacks.toml             # Nixpacks build config
+├── Dockerfile                # Docker configuration
+├── database.json             # JSON database file
+├── dist/                     # Built frontend files
+└── artifacts/
+    ├── api-server/           # Original API server (reference)
+    └── campusmart/           # React frontend (reference)
 ```
 
-## Getting Started
-
-### Prerequisites
-- Node.js 18+ 
-- npm or pnpm
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd CampusMart-V2
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   # or
-   pnpm install
-   ```
-
-3. **Start the development servers**
-   
-   **Option 1: Using the batch script (Windows)**
-   ```bash
-   ./run-dev.bat
-   ```
-   
-   **Option 2: Manual start**
-   ```bash
-   # Terminal 1 - Start API server
-   cd artifacts/api-server
-   npm run dev
-   
-   # Terminal 2 - Start frontend
-   cd artifacts/campusmart  
-   npm run dev
-   ```
-
-4. **Access the application**
-   - Frontend: http://localhost:5173
-   - API Server: http://localhost:3001
-
-## Key Features
+## 🔧 API Endpoints
 
 ### Authentication
-- User registration and login
-- JWT-based authentication
-- Role-based access (student, admin)
-
-### Marketplace
-- Product listing with images and details
-- Category-based browsing
-- Search and filter functionality
-- Seller contact information
-
-### Shopping Cart & Checkout
-- Add/remove items from cart
-- Quantity management
-- WhatsApp integration for seller communication
-- Order tracking
-
-### Accommodation
-- Room and hostel listings
-- Detailed property information
-- Contact landlords directly
-- Filter by price, type, and location
-
-### Food Delivery
-- Browse food vendors
-- Menu with categories
-- Order placement and tracking
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `GET /api/auth/me` - Get current user
+```
+POST   /api/auth/register     # Register new user
+POST   /api/auth/login        # Login user
+```
 
 ### Products
-- `GET /api/products` - List products
-- `POST /api/products` - Create product
-- `GET /api/products/:id` - Get product details
-- `PUT /api/products/:id` - Update product
-- `DELETE /api/products/:id` - Delete product
+```
+GET    /api/products          # List products
+GET    /api/products/:id      # Get product details
+POST   /api/products          # Create product (auth required)
+```
 
 ### Cart
-- `GET /api/cart` - Get user cart
-- `POST /api/cart` - Add item to cart
-- `PUT /api/cart/:id` - Update cart item
-- `DELETE /api/cart/:id` - Remove cart item
+```
+GET    /api/cart              # Get user's cart
+POST   /api/cart              # Add to cart
+PUT    /api/cart/:itemId      # Update cart item
+DELETE /api/cart/:itemId      # Remove from cart
+```
 
 ### Orders
-- `GET /api/orders` - Get user orders
-- `POST /api/orders` - Create order (checkout)
-
-## Development
-
-### Environment Variables
-Create `.env` files in both frontend and backend directories:
-
-**Backend (.env)**
 ```
-NODE_ENV=development
-PORT=3001
-JWT_SECRET=your-jwt-secret
+POST   /api/orders            # Create order
+GET    /api/orders            # Get user's orders
 ```
 
-**Frontend (.env)**
+### Other
 ```
-VITE_API_URL=http://localhost:3001/api
+GET    /api/categories        # Get categories
+GET    /api/food              # List food items
+GET    /api/rooms             # List rooms
+GET    /api/health            # Health check
 ```
 
-### Database
-The application uses a local JSON file (`local-laptop-database.json`) as the database for development. This provides:
-- Fast development without database setup
-- Data persistence between server restarts
-- Easy data inspection and modification
+## 💾 Database
 
-### Building for Production
+The application uses a **JSON-based file database** that:
+- Stores all data in `database.json`
+- Persists across server restarts
+- Auto-saves on changes
+- Supports Railway volume mounting
 
+### Database Schema
+```json
+{
+  "users": [
+    {
+      "id": "unique_id",
+      "username": "string",
+      "email": "string",
+      "phone": "string",
+      "token": "string",
+      "createdAt": "ISO_DATE"
+    }
+  ],
+  "products": [
+    {
+      "id": "unique_id",
+      "title": "string",
+      "description": "string",
+      "price": "number",
+      "category": "string",
+      "image": "url",
+      "sellerId": "user_id",
+      "sellerUsername": "string",
+      "sellerPhone": "string",
+      "createdAt": "ISO_DATE"
+    }
+  ],
+  "orders": [
+    {
+      "id": "unique_id",
+      "orderId": "CM_timestamp",
+      "userId": "user_id",
+      "items": "array",
+      "totalAmount": "number",
+      "deliveryAddress": "string",
+      "status": "pending|confirmed|delivered",
+      "createdAt": "ISO_DATE"
+    }
+  ],
+  "cart": [
+    {
+      "id": "unique_id",
+      "userId": "user_id",
+      "productId": "product_id",
+      "quantity": "number",
+      "price": "number",
+      "createdAt": "ISO_DATE"
+    }
+  ],
+  "categories": [
+    {
+      "id": "string",
+      "name": "string",
+      "description": "string"
+    }
+  ],
+  "food": [],
+  "rooms": []
+}
+```
+
+## 🔐 Authentication
+
+The application uses **token-based authentication**:
+
+1. **Register**: Create new account with username, email, password, phone
+2. **Login**: Get authentication token
+3. **API Requests**: Include token in `Authorization: Bearer <token>` header
+4. **Protected Routes**: Only authenticated users can access cart, orders, etc.
+
+## 🌐 Environment Variables
+
+```
+NODE_ENV=production          # Set to production on Railway
+PORT=3001                    # Server port (auto-set by Railway)
+RAILWAY_VOLUME_MOUNT_PATH    # Database volume path (Railway)
+```
+
+## 📦 Dependencies
+
+### Server
+- **express** - Web framework
+- **cors** - Cross-origin support
+
+### Frontend (Built separately)
+- **react** - UI library
+- **tailwindcss** - Styling
+- **react-query** - Data fetching
+- **wouter** - Routing
+- **lucide-react** - Icons
+
+## 🚀 Deployment
+
+### Railway (Recommended)
+- Automatic builds from GitHub
+- Integrated database storage
+- Auto-scaling and monitoring
+- Custom domain support
+- SSL certificates included
+
+See [RAILWAY_SETUP.md](./RAILWAY_SETUP.md) for detailed instructions.
+
+### Docker
 ```bash
-# Build backend
-cd artifacts/api-server
-npm run build
+docker build -t campusmart .
+docker run -p 3001:3001 campusmart
+```
 
-# Build frontend  
-cd artifacts/campusmart
+### Manual
+```bash
+npm install
+npm run build
+npm start
+```
+
+## 📊 Performance
+
+- **Build Time**: ~2-3 minutes on Railway
+- **Startup Time**: <5 seconds
+- **Database**: JSON file (suitable for small-medium scale)
+- **Scalability**: Horizontal scaling via Railway
+
+## 🔍 Monitoring
+
+### Health Check
+```bash
+curl https://your-app.railway.app/api/health
+```
+
+### Logs
+View real-time logs in Railway dashboard:
+1. Go to your project
+2. Click "Logs" tab
+3. Monitor server activity
+
+## 🛠️ Development
+
+### Local Setup
+```bash
+# Install dependencies
+npm install
+
+# Start server
+npm start
+
+# Server runs on http://localhost:3001
+```
+
+### Building Frontend
+```bash
 npm run build
 ```
 
-## Contributing
+### Testing API
+```bash
+# Health check
+curl http://localhost:3001/api/health
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+# Register user
+curl -X POST http://localhost:3001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","email":"test@example.com","password":"pass","phone":"254700000000"}'
+```
 
-## License
+## 📝 License
 
-This project is licensed under the MIT License.
+MIT License - See LICENSE file for details
 
-## Support
+## 👥 Contributing
 
-For support or questions, please contact the development team.
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📞 Support
+
+For issues and questions:
+1. Check [RAILWAY_SETUP.md](./RAILWAY_SETUP.md) for deployment help
+2. Review API documentation above
+3. Check server logs for errors
+
+## 🎯 Roadmap
+
+- [ ] PostgreSQL database integration
+- [ ] Payment gateway integration
+- [ ] Advanced search and filtering
+- [ ] User reviews and ratings
+- [ ] Messaging system
+- [ ] Admin analytics dashboard
+- [ ] Mobile app (React Native)
+
+---
+
+**CampusMart V2** - Making campus commerce simple and accessible. 🚀
