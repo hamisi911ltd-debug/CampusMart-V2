@@ -5,10 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "node build-for-railway.js",
-    "dev": "node server.js",
-    "railway:build": "node build-for-railway.js",
-    "railway:start": "npm start"
+    "dev": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -17,7 +14,5 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": ["marketplace", "campus", "students", "ecommerce"],
-  "author": "CampusMart Team",
   "license": "MIT"
 }
